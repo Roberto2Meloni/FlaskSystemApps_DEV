@@ -2,16 +2,16 @@
 
 ## Repo Information
 
-Name: FlaskSystemApps_DEV_Modi
+Name: FlaskSystemApps_DEV
 
-Author: Karatekti_123_Modi
+Author: Karatekti_123
 
-Createt: 30.07.2024
+Createt: 27.07.2024
 
-Type: Pro
+Type: DEV
 
-Description: Modiiiii
+Description: In diesem Repository, werden dieverse System Tools zur verfüfung gestellt.
 
-Last Update: 30.07.2024
+Last Update: 28.07.2024
 
-Other: No other informations now. UPdated: 30.07.2024 Modiii
+Other: No other informations now.
