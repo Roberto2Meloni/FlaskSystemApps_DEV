@@ -18,6 +18,6 @@ Category: System
 
 Tags: notification, chat, system
 
-Repository: https://github.com/Karatekti_123/FlaskSystemApps_DEV
+Repository URL: https://github.com/Karatekti_123/FlaskSystemApps_DEV
 
 Other: Dies ist eine Muss-Have App. Installiere die App um mehr zugriff auf dein System zu erhalten.
