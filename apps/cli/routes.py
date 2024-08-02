@@ -4,10 +4,8 @@ from flask import render_template, url_for, flash, redirect, jsonify, get_flashe
 from flask_login import current_user
 from app.routes.admin.models import User
 from app.config import Config
-from ...decorators import admin_required
-from app.helper_functions.helper_dev_tools import populate_db_users
+from app.decorators import admin_required
 from time import sleep
-from ...email import send_test_mail
 
 
 config = Config()
