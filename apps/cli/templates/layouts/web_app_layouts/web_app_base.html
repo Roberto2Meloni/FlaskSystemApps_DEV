@@ -1,0 +1,8 @@
+{% extends "layouts/websites/base.html" %} {% block app_styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('cli.static', filename='css/cli.css') }}"
+/>
+{% endblock %}{%block content %} {% endblock %} {% block javascripts %}
+<script src="{{ url_for('cli.static', filename='js/cli.js') }}"></script>
+{% endblock %}

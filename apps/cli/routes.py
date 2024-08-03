@@ -1,22 +1,44 @@
-# Import necessary modules
-from app import app, db
-from flask import render_template, url_for, flash, redirect, jsonify, get_flashed_messages
+from flask import render_template, current_app as app, request, jsonify
 from flask_login import current_user
-from app.routes.admin.models import User
+from . import blueprint
 from app.config import Config
 from app.decorators import admin_required
-from time import sleep
-
+from app.config import Config
+from jinja2 import Environment, FileSystemLoader
+import os
+import subprocess
 
 config = Config()
+root_paht = os.getcwd()
+this_app_path = os.path.join(root_paht, 'app', 'imported_apps', 'develop_release', 'cli' )
 
-# Define a blueprint for authentication routes
-from app.imported_apps.develop_release.cli import blueprint
+# template_dir = os.path.join(this_app_path, 'templates')
+# env = Environment(loader=FileSystemLoader(template_dir))
 
+@blueprint.route('/', methods=['POST', 'GET'])
+def cli():
+    app.logger.info("CLI Testseite angesurft")
+    print("CLI angesurft")
 
-@blueprint.route('/test', methods=['POST', 'GET'])
-@admin_required
-def test():
-    new_registration = User.query.filter(User.user_enable.is_(None)).count()
-    app.logger.info("dev tools Seite angesurf")
-    return "dies ist die TEST CLI Seite"
+    if request.method == 'POST':
+        print("Post erhalten")
+        command = request.json.get('command')
+        print(f"Kommando: {command}")
+        
+        try:
+            result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            response = {
+                'output': result.stdout.decode('utf-8').split('\n'),
+                'error': result.stderr.decode('utf-8').split('\n'),
+                'returncode': result.returncode
+            }
+        except subprocess.CalledProcessError as e:
+            response = {
+                'output': e.stdout.decode('utf-8').split('\n') if e.stdout else '',
+                'error': e.stderr.decode('utf-8').split('\n') if e.stderr else ['Fehler beim Ausführen des Kommandos'],
+                'returncode': e.returncode
+            }
+
+        return jsonify(response)
+
+    return render_template("cli.html", user=current_user, config=config)

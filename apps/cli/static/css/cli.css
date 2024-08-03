@@ -1,0 +1,75 @@
+.cli-wrapper {
+    background-color: #000;
+    border: 1px solid #333;
+    padding: 10px;
+    height: 500px;
+    overflow-y: auto;
+    font-family: monospace;
+    color: #c5c5c5;
+    display: flex;
+    flex-direction: column;
+}
+
+.cli-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+#cli-output {
+    flex-grow: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-bottom: 10px;
+}
+
+.input-area {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #333;
+    padding-top: 10px;
+}
+
+#prompt {
+    margin-right: 5px;
+}
+
+#cli-input {
+    flex-grow: 1;
+    padding: 10px;
+    background: #222;
+    border: 1px solid #333;
+    color: #c5c5c5;
+    font-family: monospace;
+    border: none;
+    outline: none;
+}
+
+#cursor-blink {
+    background-color: #c5c5c5;
+    animation: blink 1s step-end infinite;
+    margin-left: 5px;
+}
+
+@keyframes blink {
+    from, to {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: #c5c5c5;
+    }
+}
+
+button {
+    background: none;
+    border: none;
+    color: #c5c5c5;
+    cursor: pointer;
+}
+
+button:hover {
+    color: red;
+}

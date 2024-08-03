@@ -1,0 +1,23 @@
+{% extends "layouts/web_app_layouts/web_app_base.html" %} {% block content %}
+<div class="cli-wrapper">
+  <div class="cli-header">
+    <h4>CLI Console</h4>
+    <button id="clear-btn" onclick="clearConsole()">🗑️</button>
+  </div>
+  <div id="cli-output">
+    <p>Connected</p>
+    <p id="host">{{ config.app_name }} #</p>
+  </div>
+  <div class="input-area">
+    <span id="prompt">{{ config.app_name }} # </span>
+    <input
+      type="text"
+      id="cli-input"
+      placeholder=""
+      autofocus
+      onkeydown="handleKeyDown(event, '{{ url_for('cli.cli') }}', '{{ config.app_name }}')"
+    />
+    <div id="cursor-blink">_</div>
+  </div>
+</div>
+{% endblock %}
