@@ -10,7 +10,7 @@ Createt: 28.07.2024
 
 Last Update: 28.07.2024
 
-Last Version: 0.0.0
+Last Version: 0.0.1
 
 Description: Mittels dieser können diverse CLI Befehle ausgeführt werden.
 

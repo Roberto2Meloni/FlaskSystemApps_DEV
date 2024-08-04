@@ -16,14 +16,13 @@ this_app_path = os.path.join(root_paht, 'app', 'imported_apps', 'develop_release
 # env = Environment(loader=FileSystemLoader(template_dir))
 
 @blueprint.route('/', methods=['POST', 'GET'])
+@admin_required
 def cli():
     app.logger.info("CLI Testseite angesurft")
-    print("CLI angesurft")
 
     if request.method == 'POST':
-        print("Post erhalten")
         command = request.json.get('command')
-        print(f"Kommando: {command}")
+        app.logger.info(f"{current_user.username} -->Kommando: {command}")
         
         try:
             result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
