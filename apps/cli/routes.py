@@ -7,6 +7,7 @@ from app.config import Config
 from jinja2 import Environment, FileSystemLoader
 import os
 import subprocess
+from .models import CliCommandHistory
 
 config = Config()
 root_paht = os.getcwd()
@@ -31,6 +32,7 @@ def cli():
                 'error': result.stderr.decode('utf-8').split('\n'),
                 'returncode': result.returncode
             }
+            CliCommandHistory.create(user=current_user.username, command=command)
         except subprocess.CalledProcessError as e:
             response = {
                 'output': e.stdout.decode('utf-8').split('\n') if e.stdout else '',
