@@ -15,6 +15,7 @@ this_app_path = os.path.join(root_paht, 'app', 'imported_apps', 'develop_release
 
 # template_dir = os.path.join(this_app_path, 'templates')
 # env = Environment(loader=FileSystemLoader(template_dir))
+print("Verison 0.0.0")
 
 @blueprint.route('/', methods=['POST', 'GET'])
 @admin_required
