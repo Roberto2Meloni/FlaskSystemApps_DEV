@@ -8,9 +8,9 @@ Author: Karatekti_123
 
 Createt: 28.07.2024
 
-Last Update: 19.08.2024
+Last Update: 20.08.2024
 
-Last Version: 0.0.1
+Last Version: 0.0.2
 
 Description: Mittels dieser können diverse CLI Befehle ausgeführt werden.
 
