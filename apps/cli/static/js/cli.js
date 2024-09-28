@@ -15,40 +15,110 @@ function clearConsole() {
 }
 
 function handleKeyDown(event, url) {
-  // Zugriff auf den aktuellen Wert des Eingabefelds
   const inputField = document.getElementById("cli-input-field");
   const command = inputField.value;
 
-  // Reagiere auf bestimmte Tasten oder andere Bedingungen
   if (event.key === "Enter" && command.length > 0) {
-    // Verarbeite den Befehl
     processCommand(command, url);
-
-    // Leere das Eingabefeld nach der Verarbeitung
     inputField.value = "";
   } else if (event.key === "Escape") {
-    // Handle Escape Key (zum Beispiel, um das Eingabefeld zu leeren)
     inputField.value = "";
   }
 }
 
 async function processCommand(command, url) {
   try {
-    // Sende den Befehl an den Server und warte auf die Antwort
-    const response = await sendCommand(command, url);
+    const response = await fetch(url + "/receive_command", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ command: command }),
+    });
 
-    // Füge den Befehl und die Serverantwort in die Historie ein
-    addCommandToHistory(command, response);
+    if (!response.ok) {
+      throw new Error(`HTTP Fehler! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const commandId = data.command_id;
+
+    addCommandToHistory(command, { output: [] }, commandId);
+
+    // Starte periodische Überprüfung der Befehlsausgabe
+    checkCommandOutput(commandId, url);
   } catch (error) {
     console.error("Fehler bei der Verarbeitung des Befehls:", error);
-    // Füge den Befehl zur Historie hinzu, auch wenn ein Fehler aufgetreten ist
     addCommandToHistory(command, { error: [error.message] });
   }
 }
-function addCommandToHistory(command, response) {
+
+function safeDecodeURIComponent(str) {
+  try {
+    // Versuche zuerst, den String als UTF-8 zu dekodieren
+    return decodeURIComponent(escape(str));
+  } catch (e) {
+    try {
+      // Wenn das fehlschlägt, versuche eine direkte Dekodierung
+      return decodeURIComponent(str);
+    } catch (e2) {
+      console.warn("Fehler beim Dekodieren:", e2);
+      // Wenn auch das fehlschlägt, gib den Originalstring zurück
+      return str;
+    }
+  }
+}
+function updateCommandOutput(commandId, output, error) {
+  const historyEntry = document.querySelector(
+    `[data-command-id="${commandId}"]`
+  );
+  if (historyEntry) {
+    const outputElement = historyEntry.querySelector(".cli-output-command");
+    if (output && output.length > 0) {
+      output.forEach((line) => {
+        const decodedLine = safeDecodeURIComponent(line);
+        outputElement.innerHTML += decodedLine + "<br>";
+      });
+    }
+    if (error && error.length > 0) {
+      error.forEach((line) => {
+        const decodedLine = safeDecodeURIComponent(line);
+        outputElement.innerHTML += `<span style="color: red;">${decodedLine}</span><br>`;
+      });
+    }
+    // Scroll to the top after updating
+    const cliWrapper = document.querySelector(".cli-console-container");
+    cliWrapper.scrollTop = 0;
+  }
+}
+
+function checkCommandOutput(commandId, url) {
+  const intervalId = setInterval(async () => {
+    try {
+      const response = await fetch(`${url}/check_output/${commandId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+
+      updateCommandOutput(commandId, data.output, data.error);
+
+      if (data.complete) {
+        clearInterval(intervalId);
+      }
+    } catch (error) {
+      console.error("Fehler beim Abrufen der Befehlsausgabe:", error);
+      updateCommandOutput(commandId, [], [`Fehler: ${error.message}`]);
+      clearInterval(intervalId);
+    }
+  }, 500);
+}
+
+function addCommandToHistory(command, response, commandId) {
   const history = document.getElementById("cli-history");
   const commandUl = document.createElement("div");
   commandUl.classList.add("cli-history-entry");
+  commandUl.dataset.commandId = commandId;
 
   const commandInput = document.createElement("div");
   const commandOutput = document.createElement("div");
@@ -83,27 +153,29 @@ function addCommandToHistory(command, response) {
   cliWrapper.scrollTop = 0; // Scrolle ganz nach oben
 }
 
-async function sendCommand(command, url) {
+function replaceSpecialChars(str) {
+  const specialChars = {
+    "Ã¼": "ü",
+    "Ã¤": "ä",
+    "Ã¶": "ö",
+    Ã: "Ü",
+    "Ã„": "Ä",
+    "Ã–": "Ö",
+    ÃŸ: "ß",
+    "â‚¬": "€",
+  };
+  return str.replace(/[ÃüäöÜÄÖßâ‚¬]/g, (match) => specialChars[match] || match);
+}
+
+function safeDecodeURIComponent(str) {
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ command: command }),
-    });
-
-    // Überprüfen, ob die Antwort erfolgreich war
-    if (!response.ok) {
-      throw new Error(`HTTP Fehler! Status: ${response.status}`);
+    return replaceSpecialChars(decodeURIComponent(escape(str)));
+  } catch (e) {
+    try {
+      return replaceSpecialChars(decodeURIComponent(str));
+    } catch (e2) {
+      console.warn("Fehler beim Dekodieren:", e2);
+      return replaceSpecialChars(str);
     }
-
-    const data = await response.json();
-
-    // Die Daten zurückgeben
-    return data;
-  } catch (error) {
-    // Fehler zurückwerfen, die von processCommand gefangen werden
-    throw new Error(`Fehler beim Senden des Befehls: ${error.message}`);
   }
 }
