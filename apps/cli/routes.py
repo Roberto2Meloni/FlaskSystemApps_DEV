@@ -16,7 +16,7 @@ config = Config()
 # Dictionary to store running commands
 running_commands = {}
 
-print("CLI Version 0.0.4")
+print("CLI Version 0.0.5")
 
 
 def run_command(command_id, command):
