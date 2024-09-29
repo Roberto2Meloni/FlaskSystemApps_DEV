@@ -120,19 +120,6 @@ def command_history():
     return jsonify(history_list)
 
 
-@blueprint.route("/clear_history", methods=["POST"])
-@admin_required
-def clear_history():
-    try:
-        CliCommandHistory.query.delete()
-        db.session.commit()
-        return jsonify({"message": "Command history cleared successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error clearing command history: {str(e)}")
-        return jsonify({"error": "Failed to clear command history"}), 500
-
-
 @blueprint.route("/kill_command/<command_id>", methods=["POST"])
 @admin_required
 def kill_command(command_id):
