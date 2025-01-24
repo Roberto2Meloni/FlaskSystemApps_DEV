@@ -53,9 +53,9 @@ def run_command(command_id, command):
     }
 
 
-@blueprint.route("/", methods=["GET"])
+@blueprint.route("/cli_index", methods=["GET"])
 @admin_required
-def cli():
+def cli_index():
     app.logger.info("CLI page accessed")
     return render_template("cli.html", user=current_user, config=config)
 
@@ -66,20 +66,22 @@ def receive_command():
     command = request.json.get("command")
     app.logger.info(f"{current_user.username} --> Command: {command}")
 
-    command_id = str(uuid.uuid4())
-    threading.Thread(target=run_command, args=(command_id, command)).start()
+    # command_id = str(uuid.uuid4())
 
     new_command = CliCommandHistory(user=current_user.username, command=command)
     db.session.add(new_command)
     db.session.commit()
+    threading.Thread(target=run_command, args=(new_command.id, command)).start()
 
-    return jsonify({"command_id": command_id})
+    return jsonify({"command_id": new_command.id})
 
 
-@blueprint.route("/check_output/<command_id>", methods=["GET"])
+@blueprint.route("/check_output/<int:command_id>", methods=["GET"])
 @admin_required
 def check_output(command_id):
+    print(f"Checking output for command_id: {command_id}")
     if command_id not in running_commands:
+        print(f"Command {command_id} not found in running_commands")
         return jsonify({"error": "Command not found"}), 404
 
     command_info = running_commands[command_id]
@@ -103,6 +105,7 @@ def check_output(command_id):
     )
 
 
+# not in use yet
 @blueprint.route("/command_history", methods=["GET"])
 @admin_required
 def command_history():
@@ -122,6 +125,7 @@ def command_history():
     return jsonify(history_list)
 
 
+# not in use yet
 @blueprint.route("/kill_command/<command_id>", methods=["POST"])
 @admin_required
 def kill_command(command_id):

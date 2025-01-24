@@ -25,7 +25,7 @@
           id="cli-input-field"
           placeholder=""
           autofocus
-          onkeydown="handleKeyDown(event, '{{ url_for('cli.cli') }}')"
+          onkeydown="handleKeyDown(event, '{{ url_for('cli.receive_command') }}', '{{ url_for('cli.check_output', command_id='0') }}')"
         />
       </div>
     </div>
