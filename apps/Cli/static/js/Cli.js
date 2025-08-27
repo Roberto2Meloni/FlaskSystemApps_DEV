@@ -26,9 +26,9 @@ function handleKeyDown(event, url_receive_command, url_check_output) {
   }
 }
 
-async function processCommand(command, url_check_command, url_check_output) {
+async function processCommand(command, url_receive_command, url_check_output) {
   try {
-    const response = await fetch(url_check_command, {
+    const response = await fetch(url_receive_command, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -53,21 +53,6 @@ async function processCommand(command, url_check_command, url_check_output) {
   }
 }
 
-function safeDecodeURIComponent(str) {
-  try {
-    // Versuche zuerst, den String als UTF-8 zu dekodieren
-    return decodeURIComponent(escape(str));
-  } catch (e) {
-    try {
-      // Wenn das fehlschlägt, versuche eine direkte Dekodierung
-      return decodeURIComponent(str);
-    } catch (e2) {
-      console.warn("Fehler beim Dekodieren:", e2);
-      // Wenn auch das fehlschlägt, gib den Originalstring zurück
-      return str;
-    }
-  }
-}
 function updateCommandOutput(commandId, output, error) {
   const historyEntry = document.querySelector(
     `[data-command-id="${commandId}"]`
