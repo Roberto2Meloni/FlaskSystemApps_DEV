@@ -1,5 +1,16 @@
 import os
 import shutil
+from datetime import datetime
+
+
+def get_current_date_formatted():
+    """Gibt das heutige Datum im Format dd.mm.yyyy zurück"""
+    today = datetime.now()
+    day = today.day
+    month = today.month
+    year = today.year
+
+    return f"{day:02d}.{month:02d}.{year}"
 
 
 def replace_template_content(app_path, app_name):
@@ -8,6 +19,9 @@ def replace_template_content(app_path, app_name):
         "Template_app_v000_index",  # Längerer String zuerst
         "Template_app_v000",  # Kürzerer String danach
     ]
+
+    # Aktuelles Datum für README
+    current_date = get_current_date_formatted()
 
     # Liste für umzubenennende Dateien/Ordner
     items_to_rename = []
@@ -25,11 +39,50 @@ def replace_template_content(app_path, app_name):
                     content = f.read()
 
                 content_changed = False
-                # Beide Template-Strings ersetzen (längeren zuerst!)
+
+                # Template-Strings ersetzen (längeren zuerst!)
                 for template_string in template_strings:
                     if template_string in content:
                         content = content.replace(template_string, app_name)
                         content_changed = True
+
+                # Datumsfelder im README ersetzen
+                if file.lower() == "readme.md" or "readme" in file.lower():
+                    import re
+
+                    # Created: Datum ersetzen
+                    if "Created:" in content:
+                        # Erkennt sowohl dd.mm.yyyy als auch dd.mmm.yyyy Format
+                        content = re.sub(
+                            r"Created:\s*\d{1,2}\.\d{1,2}\.\d{4}",
+                            f"Created: {current_date}",
+                            content,
+                        )
+                        content = re.sub(
+                            r"Created:\s*\d{1,2}\.\w{3}\.\d{4}",
+                            f"Created: {current_date}",
+                            content,
+                        )
+                        content_changed = True
+                        print(f"📅 'Created:' Datum aktualisiert auf: {current_date}")
+
+                    # Last Update: Datum ersetzen
+                    if "Last Update:" in content:
+                        # Erkennt sowohl dd.mm.yyyy als auch dd.mmm.yyyy Format
+                        content = re.sub(
+                            r"Last Update:\s*\d{1,2}\.\d{1,2}\.\d{4}",
+                            f"Last Update: {current_date}",
+                            content,
+                        )
+                        content = re.sub(
+                            r"Last Update:\s*\d{1,2}\.\w{3}\.\d{4}",
+                            f"Last Update: {current_date}",
+                            content,
+                        )
+                        content_changed = True
+                        print(
+                            f"📅 'Last Update:' Datum aktualisiert auf: {current_date}"
+                        )
 
                 # Datei nur schreiben wenn sich etwas geändert hat
                 if content_changed:
@@ -132,7 +185,9 @@ def create_new_flask_app():
         # Template-Inhalte anpassen
         replace_template_content(new_app_path, app_name)
 
+        current_date = get_current_date_formatted()
         print(f"✅ Neue Flask App '{app_name}' wurde erfolgreich erstellt!")
+        print(f"📅 Alle Datumswerte wurden auf: {current_date} aktualisiert")
         print(f"Pfad: {new_app_path}")
 
     except Exception as e:
