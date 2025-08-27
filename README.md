@@ -6,7 +6,7 @@ Name: FlaskSystemApps_DEV
 
 Author: Karatekti_123
 
-Createt: 27.07.2024
+Created: 27.07.2024
 
 Type: DEV
 

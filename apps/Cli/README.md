@@ -6,7 +6,7 @@ Name: Cli
 
 Author: Karatekti_123
 
-Createt: 27.08.2025
+Created: 27.08.2025
 
 Last Update: 27.08.2025
 

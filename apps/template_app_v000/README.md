@@ -6,7 +6,7 @@ Name: Template_app_v000
 
 Author: Karatekti_123
 
-Createt: 28.07.2024
+Created: 28.07.2024
 
 Last Update: 11.07.2025
 
