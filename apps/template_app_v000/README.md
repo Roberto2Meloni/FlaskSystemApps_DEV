@@ -20,6 +20,6 @@ Category: System
 
 Tags: template
 
-Repository URL: https://github.com/Roberto2Meloni/FlaskTemplateApp
+Repository URL: https://github.com/Roberto2Meloni/FlaskSystemApps_DEV/
 
 Other: Dies ist die Vorlage App. Der Other Eintrag.
