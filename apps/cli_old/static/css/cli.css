@@ -1,0 +1,140 @@
+*, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* Box-Sizing auf die gesamte Seite anwenden */
+}
+
+.cli-container {
+    display: flex;
+    justify-content: center;
+    height: 100vh;
+    width: 100%;
+}
+
+.cli-wrapper {
+    width: 90%;
+    height: 80%;
+    margin: 10px;
+    border: 5px solid #008B10;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Verhindert, dass Kinder den Container überfließen */
+}
+
+.cli-header {
+    background-color: #E6E6E6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid black;
+    padding: 5px;
+}
+
+.cli-title {
+    margin-left: 10px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    /* Macht den Titel auffälliger */
+}
+
+.cli-tools {
+    margin-right: 10px;
+    background-color: black;
+}
+
+.cli-console-container {
+    background-color: #0D0D0D;
+    color: white;
+    height: 100%;
+    padding: 10px;
+    overflow-y: auto;
+    /* Ermöglicht vertikales Scrollen */
+    display: flex;
+    flex-direction: column;
+}
+
+.cli-connected {
+    margin: 10px 0;
+    color: #008B10;
+    font-family: monospace;
+    /* Konsistent mit der CLI-Ästhetik */
+}
+
+.cli-history {
+    margin: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 10px;
+    /* Fügt etwas Abstand zum Rand hinzu */
+}
+
+.cli-history .cli-input-command,
+.cli-history .cli-output-command {
+    padding: 10px;
+    /* Etwas mehr Padding für bessere Lesbarkeit */
+    border-radius: 8px;
+    /* Abgerundete Ecken für ein moderneres Aussehen */
+    margin-bottom: 10px;
+    /* Etwas mehr Abstand zwischen den Einträgen */
+    font-family: monospace;
+    /* Konsistent mit der CLI-Ästhetik */
+}
+
+.cli-history .cli-input-command {
+    color: #00ff00;
+    /* Hellerer Grünton für Eingaben */
+    background-color: #000;
+    /* Dunkler Hintergrund für Befehle */
+    border: 1px solid #00ff00;
+    /* Dünner grüner Rand für mehr Kontrast */
+}
+
+.cli-history .cli-output-command {
+    color: #f0f0f0;
+    /* Hellerer Text für bessere Lesbarkeit */
+    background-color: #333;
+    /* Dunklerer Hintergrund für Ausgaben */
+    border: 1px solid #f0f0f0;
+    /* Dünner weißer Rand für mehr Kontrast */
+}
+
+.cli-input {
+    display: flex;
+    align-items: center;
+    background-color: #000;
+    padding: 10px;
+    /* Mehr Padding für ein angenehmeres Eingeben */
+    position: relative;
+    flex-shrink: 0;
+    /* Verhindert, dass das Eingabefeld komprimiert wird */
+    border-top: 1px solid #008B10;
+    /* Abtrennung vom Rest der Konsole */
+}
+
+.cli-input>* {
+    margin-right: 5px;
+}
+
+.cli-input>*:last-child {
+    margin-right: 0;
+}
+
+#cli-input-field {
+    flex: 1;
+    height: 1.5em;
+    background-color: #000;
+    color: white;
+    border: none;
+    outline: none;
+    font-family: monospace;
+    font-size: 1em;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    z-index: 1;
+    border-radius: 5px;
+    /* Abgerundete Ecken für das Eingabefeld */
+}

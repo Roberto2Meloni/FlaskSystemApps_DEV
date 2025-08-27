@@ -2,7 +2,7 @@
 
 ## App Information
 
-Name: Cli
+Name: Template_app_v000
 
 Author: Karatekti_123
 

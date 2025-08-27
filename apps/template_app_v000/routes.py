@@ -14,12 +14,12 @@ from icecream import ic
 
 config = Config()
 
-print("Cli Version 0.0.0")
+print("Template_app_v000 Version 0.0.0")
 
 
-@blueprint.route("/Cli", methods=["GET"])
+@blueprint.route("/Template_app_v000_index", methods=["GET"])
 @enabled_required
-def Cli():
+def Template_app_v000_index():
     return render_template(
-        "Cli.html", user=current_user, config=config
+        "Template_app_v000_index.html", user=current_user, config=config
     )

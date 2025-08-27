@@ -1,8 +1,8 @@
-{% extends "layouts/web_app_layouts/Cli_web_app_base.html" %} {%
+{% extends "layouts/web_app_layouts/Template_app_v000_web_app_base.html" %} {%
 block app_styles %}
 <link
   rel="stylesheet"
-  href="{{ url_for('Cli.static', filename='css/Cli.css') }}"
+  href="{{ url_for('Template_app_v000.static', filename='css/Template_app_v000.css') }}"
 />
 {% endblock %} {% block content %} {% if current_user|has_admin_rights %}
 <h4>Du bist Admin</h4>

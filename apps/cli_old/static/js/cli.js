@@ -14,21 +14,21 @@ function clearConsole() {
   output.innerHTML = "";
 }
 
-function handleKeyDown(event, url_receive_command, url_check_output) {
+function handleKeyDown(event, url) {
   const inputField = document.getElementById("cli-input-field");
   const command = inputField.value;
 
   if (event.key === "Enter" && command.length > 0) {
-    processCommand(command, url_receive_command, url_check_output);
+    processCommand(command, url);
     inputField.value = "";
   } else if (event.key === "Escape") {
     inputField.value = "";
   }
 }
 
-async function processCommand(command, url_check_command, url_check_output) {
+async function processCommand(command, url) {
   try {
-    const response = await fetch(url_check_command, {
+    const response = await fetch(url + "/receive_command", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,7 +46,7 @@ async function processCommand(command, url_check_command, url_check_output) {
     addCommandToHistory(command, { output: [] }, commandId);
 
     // Starte periodische Überprüfung der Befehlsausgabe
-    checkCommandOutput(commandId, url_check_output);
+    checkCommandOutput(commandId, url);
   } catch (error) {
     console.error("Fehler bei der Verarbeitung des Befehls:", error);
     addCommandToHistory(command, { error: [error.message] });
@@ -92,14 +92,10 @@ function updateCommandOutput(commandId, output, error) {
   }
 }
 
-function checkCommandOutput(commandId, url_check_output) {
-  console.log("checkCommandOutput");
-  console.log(commandId);
-  let new_url = url_check_output.replace("/0", `/${commandId}`);
-  console.log(new_url);
+function checkCommandOutput(commandId, url) {
   const intervalId = setInterval(async () => {
     try {
-      const response = await fetch(new_url);
+      const response = await fetch(`${url}/check_output/${commandId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
