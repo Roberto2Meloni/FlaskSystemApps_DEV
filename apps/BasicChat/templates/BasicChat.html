@@ -1,0 +1,9 @@
+{% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {%
+block app_styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('BasicChat.static', filename='css/BasicChat.css') }}"
+/>
+{% endblock %} {% block content %} {% if current_user|has_admin_rights %}
+<h4>Du bist Admin</h4>
+{% endif %} {% endblock %}

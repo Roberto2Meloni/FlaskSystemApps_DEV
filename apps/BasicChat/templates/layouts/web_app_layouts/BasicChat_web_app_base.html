@@ -1,0 +1,8 @@
+{% extends "layouts/websites/base.html" %} {% block app_styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('BasicChat.static', filename='css/BasicChat.css') }}"
+/>
+{% endblock %}{%block content %} {% endblock %} {% block javascripts %}
+<script src="{{ url_for('BasicChat.static', filename='js/BasicChat.js') }}"></script>
+{% endblock %}

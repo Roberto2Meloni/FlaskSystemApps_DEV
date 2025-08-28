@@ -1,0 +1,6 @@
+*, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* Box-Sizing auf die gesamte Seite anwenden */
+}
