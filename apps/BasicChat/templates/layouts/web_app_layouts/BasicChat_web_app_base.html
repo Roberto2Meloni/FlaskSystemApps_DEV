@@ -4,5 +4,7 @@
   href="{{ url_for('BasicChat.static', filename='css/BasicChat.css') }}"
 />
 {% endblock %}{%block content %} {% endblock %} {% block javascripts %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 <script src="{{ url_for('BasicChat.static', filename='js/BasicChat.js') }}"></script>
 {% endblock %}

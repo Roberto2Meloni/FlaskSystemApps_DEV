@@ -1,9 +1,92 @@
-{% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {%
-block app_styles %}
-<link
-  rel="stylesheet"
-  href="{{ url_for('BasicChat.static', filename='css/BasicChat.css') }}"
-/>
-{% endblock %} {% block content %} {% if current_user|has_admin_rights %}
-<h4>Du bist Admin</h4>
-{% endif %} {% endblock %}
+{% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {% block
+content %}
+<div class="chat-container">
+  <!-- Linke Sidebar - Chat-Liste -->
+  <div class="chat-sidebar">
+    <!-- Header der Sidebar -->
+    <div class="sidebar-header">
+      <div class="user-info">
+        <div class="user-avatar">
+          {{ current_user.username[0].upper() if current_user.username else 'U'
+          }}
+        </div>
+        <div class="user-details">
+          <h3>
+            {{ current_user.username if current_user.username else 'Benutzer' }}
+          </h3>
+          <span class="user-status">Online</span>
+        </div>
+      </div>
+      {% if current_user|has_admin_rights %}
+      <div class="admin-badge">
+        <span>👑 Admin</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Chat-Liste -->
+    <div class="chat-list">
+      <div class="chat-item active" data-room="global">
+        <div class="chat-avatar">
+          <span>🌍</span>
+        </div>
+        <div class="chat-info">
+          <h4>Globaler Chat</h4>
+          <p class="last-message">Willkommen im globalen Chatraum!</p>
+          <span class="message-time">Jetzt</span>
+        </div>
+        <div class="unread-count">
+          <span>0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hauptchat-Bereich -->
+  <div class="chat-main">
+    <!-- Chat Header -->
+    <div class="chat-header">
+      <div class="chat-info">
+        <div class="chat-avatar">
+          <span>🌍</span>
+        </div>
+        <div class="chat-details">
+          <h3>Globaler Chat</h3>
+          <span class="chat-status">Alle Benutzer • Online</span>
+        </div>
+      </div>
+      <div class="chat-actions">
+        <button class="action-btn" id="clearChat" title="Chat löschen">
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat-Nachrichten Bereich -->
+    <div class="chat-messages" id="chatMessages">
+      <!-- Willkommensnachricht -->
+      <div class="message-wrapper system">
+        <div class="message system-message">
+          <p>Willkommen im globalen Chatraum! 🎉</p>
+          <p>Globaler Chat-Raum ID: {{ global_room_id }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat-Input -->
+    <div class="chat-input-area">
+      <div class="input-container">
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="Nachricht eingeben..."
+          autocomplete="off"
+        />
+        <button id="sendButton" class="send-btn">
+          <span>📤</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
