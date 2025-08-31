@@ -16,6 +16,22 @@ print("Die Globale Room ID ist:", global_room_id)
 # Hier definieren wir nur NEUE Events für den Chat
 
 
+@socketio.on("BasicChat_do_the_harlemshake")
+def handle_BasicChat_do_the_harlemshake(data):
+    name = data.get("name", "Unbekannt")
+    is_admin = data.get("isAdmin", False)
+
+    print(
+        f"Harlemshake Befehl von {name}. Admin Status: {is_admin}, senden wir dies an alle"
+    )
+
+    emit(
+        "BasicChat_do_the_harlemshake_reply",
+        {"sender": name, "isAdmin": is_admin},
+        broadcast=True,
+    )
+
+
 @socketio.on("BasicChat_send_message")
 def handle_BasicChat_send_message(data):
     """

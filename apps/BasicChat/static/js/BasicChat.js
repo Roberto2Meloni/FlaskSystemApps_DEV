@@ -121,11 +121,41 @@ class BasicChat {
       );
     });
 
-    // Nutzt bestehenden Handler aus __init__.py
-    this.socket.on("pong", (data) => {
-      console.log("🏓 Pong empfangen:", data);
-      this.addMessage(`🏓 Pong: ${data.message}`, "system");
+    this.socket.on("BasicChat_do_the_harlemshake_reply", (data) => {
+      console.log("Harlemshake von:", data.sender, "Admin:", data.isAdmin);
+
+      // Wert extrahieren
+      let isAdmin = data.isAdmin;
+      let sender = data.sender;
+      let username = window.basicChat.currentUser.name;
+
+      // Prüfen ob true
+      if (isAdmin === true) {
+        console.log("Benutzer ist Admin");
+        doScreenShake();
+      } else {
+        console.log(
+          "Der Sender ist kein Admin und hat nichts zu sagen. Nur der nicht admin Sender dreht sich nun!"
+        );
+        if (username === sender) {
+          console.log("Du bist der Sender, mach den Harlemshake selber");
+          doScreenShake();
+        } else {
+          console.log("Du must hier nichts machen");
+        }
+      }
     });
+
+    function doScreenShake() {
+      // Animation sofort starten
+      document.body.style.transition = "transform 2s ease-in-out";
+      document.body.style.transform = "rotate(360deg)";
+
+      // Reset nach 2 Sekunden (wenn Animation fertig ist)
+      setTimeout(() => {
+        document.body.style.transform = "rotate(0deg)";
+      }, 2000);
+    }
 
     // Error handling
     this.socket.on("connect_error", (error) => {
@@ -133,6 +163,9 @@ class BasicChat {
       this.addMessage("❌ Kann nicht mit Server verbinden", "system");
     });
 
+    this.socket.on("BasicChat_do_the_harlemshake_reply", () => {
+      console.log("Ich drehe den Bildschirm um 360 Grad");
+    });
     console.log("🎮 Socket.IO Events registriert");
   }
 
@@ -415,3 +448,21 @@ function getChatInstance() {
 
 // === INITIALISIERUNG ===
 console.log("📚 BasicChat Modul geladen - bereit für Initialisierung");
+
+function doTheHarlemshake() {
+  if (window.basicChat && window.basicChat.isConnected) {
+    console.log(
+      "Ich will, dass alle den Harlemshake machen, sende befehl als Admin an Server"
+    );
+    let username = window.basicChat.currentUser.name;
+    let isAdmin = window.basicChat.currentUser.isAdmin;
+
+    console.log("Harlemshake von:", username);
+
+    // Daten als Objekt senden
+    window.basicChat.socket.emit("BasicChat_do_the_harlemshake", {
+      name: username,
+      isAdmin: isAdmin,
+    });
+  }
+}
