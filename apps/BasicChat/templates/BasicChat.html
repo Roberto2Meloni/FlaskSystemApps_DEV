@@ -1,95 +1,68 @@
 {% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {% block
 content %}
-<div class="chat-container">
-  <!-- Linke Sidebar - Chat-Liste -->
-  <div class="chat-sidebar">
-    <!-- Header der Sidebar -->
-    <div class="sidebar-header">
-      <div class="user-info">
-        <div class="user-avatar">
-          {{ current_user.username[0].upper() if current_user.username else 'U'
-          }}
-        </div>
-        <div class="user-details">
-          <h3>
-            {{ current_user.username if current_user.username else 'Benutzer' }}
-          </h3>
-          <span class="user-status">Online</span>
-        </div>
+<div class="main-container">
+  <div class="main-sidbar">
+    <div class="main-sidbar-profil">
+      <div class="main-sidbar-profil-avatar">
+        <img src="{{ current_user.avatar(32) }}" alt="Profilbild" />
       </div>
-      {% if current_user|has_admin_rights %}
-      <div class="admin-badge">
-        <span>👑 Admin</span>
-      </div>
-      {% endif %}
+      <p>{{ current_user.username }}</p>
     </div>
-
-    <!-- Chat-Liste -->
-    <button class="btn btn-success" onclick="doTheHarlemshake()">
-      Harlemshake
-    </button>
-    <div class="chat-list">
-      <div class="chat-item active" data-room="global">
-        <div class="chat-avatar">
-          <span>🌍</span>
+    <div class="main-sidbar-settings-and-apps">
+      {% if current_user|has_admin_rights %}
+      <a href="#"><i class="sidebar-icon bi bi-gear-fill"></i> </a>
+      {% endif %}
+      <a href="{{ url_for('myapp.home') }}">
+        <i class="sidebar-icon bi bi-grid-3x3-gap-fill"></i>
+      </a>
+    </div>
+  </div>
+  <div class="main-chat-and-groups">
+    <div class="main-chat-and-groups-header-and-buttons">
+      <div class="main-chat-and-groups-header">
+        <h4>{{ app_config.app_name }}</h4>
+      </div>
+      <div class="main-chat-and-groups-buttons">
+        <button><i class="bi bi-person-plus-fill"></i></button>
+      </div>
+    </div>
+    <div class="main-chat-and-group-search">
+      <div class="form-outline" data-mdb-input-init>
+        <input
+          type="search"
+          id="form1"
+          class="form-control"
+          placeholder="Suchen"
+          aria-label="Search"
+        />
+      </div>
+    </div>
+    <div class="main-chat-and-groups-list">
+      <!-- Hier kann durch iteriert werden mit jinja2 -->
+      <div class="main-chat-and-groups-list-wraper">
+        <div class="main-chat-and-groups-list-avatar">
+          <!-- Das icon ist nur ein Plazhalter -->
+          <i class="bi bi-person-circle"></i>
         </div>
-        <div class="chat-info">
-          <h4>Globaler Chat</h4>
-          <p class="last-message">Willkommen im globalen Chatraum!</p>
-          <span class="message-time">Jetzt</span>
-        </div>
-        <div class="unread-count">
-          <span>0</span>
-        </div>
+        <div class="main-chat-and-groups-list-name">Name Kollege</div>
+        <div class="main-chat-and-groups-list-last-message">22:22</div>
       </div>
     </div>
   </div>
-
-  <!-- Hauptchat-Bereich -->
-  <div class="chat-main">
-    <!-- Chat Header -->
-    <div class="chat-header">
-      <div class="chat-info">
-        <div class="chat-avatar">
-          <span>🌍</span>
+  <div class="main-chat-content">
+    <div class="main-chat-content-header">
+      <div class="main-chat-content-header-avatar-and-name">
+        <div class="main-chat-content-header-avatar">
+          <i class="bi bi-person-circle"></i>
         </div>
-        <div class="chat-details">
-          <h3>Globaler Chat</h3>
-          <span class="chat-status">Alle Benutzer • Online</span>
-        </div>
+        <div class="main-chat-content-header-name"><h4>Name Kollege</h4></div>
       </div>
-      <div class="chat-actions">
-        <button class="action-btn" id="clearChat" title="Chat löschen">
-          🗑️
-        </button>
+      <div class="main-chat-content-header-buttons">
+        <button><i class="bi bi-search"></i></button>
+        <button><i class="bi bi-star"></i></button>
       </div>
     </div>
-
-    <!-- Chat-Nachrichten Bereich -->
-    <div class="chat-messages" id="chatMessages">
-      <!-- Willkommensnachricht -->
-      <div class="message-wrapper system">
-        <div class="message system-message">
-          <p>Willkommen im globalen Chatraum! 🎉</p>
-          <p>Globaler Chat-Raum ID: {{ global_room_id }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Chat-Input -->
-    <div class="chat-input-area">
-      <div class="input-container">
-        <input
-          type="text"
-          id="messageInput"
-          placeholder="Nachricht eingeben..."
-          autocomplete="off"
-        />
-        <button id="sendButton" class="send-btn">
-          <span>📤</span>
-        </button>
-      </div>
-    </div>
+    <div class="main-chat-content-message"></div>
   </div>
 </div>
 {% endblock %}

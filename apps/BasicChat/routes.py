@@ -15,6 +15,11 @@ from icecream import ic
 # App spezifische imports
 from . import socketio_events
 
+try:
+    from .helper_app_functions import helper_basic_app
+except Exception as e:
+    print(f"Fehler beim Importieren der helper_app_functions: {e}")
+
 global_room_id = socketio_events.global_room_id
 
 # from .models import xx
@@ -30,9 +35,11 @@ print(f"Globale Raum ID, welche via routes integrier wurde: {global_room_id}")
 @blueprint.route("/BasicChat_index", methods=["GET"])
 @enabled_required
 def BasicChat_index():
+    app_config = helper_basic_app.get_app_config()
     return render_template(
         "BasicChat.html",
         user=current_user,
         config=config,
         global_room_id=global_room_id,
+        app_config=app_config,
     )
