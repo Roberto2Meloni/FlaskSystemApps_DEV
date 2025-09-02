@@ -2,14 +2,7 @@ from app import socketio
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
 from flask import request
-import secrets, string
 
-# Globale Variable
-global_room_id = "".join(
-    secrets.choice(string.ascii_letters + string.digits) for _ in range(16)
-)
-
-print("Die Globale Room ID ist:", global_room_id)
 
 # ===== CHAT-SPEZIFISCHE EVENTS (ohne Konflikt mit __init__.py) =====
 # Die bestehenden Events (connect, disconnect, ping) bleiben in __init__.py
@@ -77,7 +70,6 @@ def handle_BasicChat_join_global_chat():
     Benutzer tritt dem globalen Chat bei
     Dies ist ein NEUER Event - kein Konflikt
     """
-    join_room(global_room_id)
 
     if current_user.is_authenticated:
         username = current_user.username
@@ -86,14 +78,18 @@ def handle_BasicChat_join_global_chat():
 
     print(f"👤 {username} ist dem globalen Chat beigetreten")
 
+    # # Info an alle in der Room
+    # emit(
+    #     "user_joined_chat",
+    #     {"username": username, "room_id": global_room_id},
+    #     room=global_room_id,
+    #     include_self=False,
+    # )  # include_self=False sendet NICHT an sich selbst
     # Info an alle in der Room
     emit(
         "user_joined_chat",
-        {"username": username, "room_id": global_room_id},
-        room=global_room_id,
+        {
+            "username": username,
+        },
         include_self=False,
     )  # include_self=False sendet NICHT an sich selbst
-
-
-print("✅ Chat-spezifische Socket.IO Events registriert")
-print(f"🌍 Globale Room ID: {global_room_id}")
