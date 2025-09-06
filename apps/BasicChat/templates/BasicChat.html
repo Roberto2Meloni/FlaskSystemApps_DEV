@@ -1,6 +1,7 @@
 {% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {% block
 content %}
 <div class="main-container">
+  <!-- Sidebar -->
   <div class="main-sidbar">
     <div class="main-sidbar-profil">
       <div class="main-sidbar-profil-avatar">
@@ -10,13 +11,15 @@ content %}
     </div>
     <div class="main-sidbar-settings-and-apps">
       {% if current_user|has_admin_rights %}
-      <a href="#"><i class="sidebar-icon bi bi-gear-fill"></i> </a>
+      <a href="#"><i class="sidebar-icon bi bi-gear-fill"></i></a>
       {% endif %}
       <a href="{{ url_for('myapp.home') }}">
         <i class="sidebar-icon bi bi-grid-3x3-gap-fill"></i>
       </a>
     </div>
   </div>
+
+  <!-- Chat-Liste -->
   <div class="main-chat-and-groups">
     <div class="main-chat-and-groups-header-and-buttons">
       <div class="main-chat-and-groups-header">
@@ -26,6 +29,7 @@ content %}
         <button><i class="bi bi-person-plus-fill"></i></button>
       </div>
     </div>
+
     <div class="main-chat-and-group-search">
       <div class="form-outline" data-mdb-input-init>
         <input
@@ -37,32 +41,147 @@ content %}
         />
       </div>
     </div>
+
     <div class="main-chat-and-groups-list">
-      <!-- Hier kann durch iteriert werden mit jinja2 -->
-      <div class="main-chat-and-groups-list-wraper">
-        <div class="main-chat-and-groups-list-avatar">
-          <!-- Das icon ist nur ein Plazhalter -->
-          <i class="bi bi-person-circle"></i>
+      {% for chat in all_my_chats %}
+      <div
+        class="chat-list-item"
+        data-room-number="{{ chat.chat_room_number }}"
+        data-chat-type="{% if chat.group_name %}group{% else %}normal{% endif %}"
+        data-chat-url="{{ url_for('BasicChat.get_chat_contanten', chat_room_number=chat.chat_room_number) }}"
+        data-messages-url="{{ url_for('BasicChat.get_chat_messages', chat_room_number=chat.chat_room_number) }}"
+        onclick="loadChat(
+          '{{ url_for('BasicChat.get_chat_contanten', chat_room_number=chat.chat_room_number) }}',
+          '{{ url_for('BasicChat.get_chat_messages', chat_room_number=chat.chat_room_number) }}'
+        )"
+      >
+        <div class="main-chat-and-groups-list-wraper">
+          <div class="main-chat-and-groups-list-avatar">
+            {% if chat.group_name %}
+            <i class="bi bi-people-fill"></i>
+            <!-- Gruppen-Icon -->
+            {% else %}
+            <i class="bi bi-person-circle"></i>
+            <!-- Person-Icon -->
+            {% endif %}
+          </div>
+
+          <div class="main-chat-and-groups-list-name">
+            {% if chat.group_name %} {{ chat.group_name }} {% else %} Chat {{
+            chat.a_user_id }}-{{ chat.b_user_id }} {% endif %}
+          </div>
+
+          <div class="main-chat-and-groups-list-last-message">
+            <small>
+              {% if chat.last_message_date and chat.last_message_date.date() ==
+              get_current_time.date() %} {{
+              chat.last_message_date.strftime('%H:%M') }} {% elif
+              chat.last_message_date %} {{
+              chat.last_message_date.strftime('%d.%m.%Y') }} {% else %} Neu {%
+              endif %}
+            </small>
+          </div>
+
+          <!-- Optional: Chat-Typ Badge -->
+          <div class="chat-type-badge" style="display: none">
+            {% if chat.group_name %}
+            <span class="badge badge-primary">Gruppe</span>
+            {% else %}
+            <span class="badge badge-secondary">Privat</span>
+            {% endif %}
+          </div>
         </div>
-        <div class="main-chat-and-groups-list-name">Name Kollege</div>
-        <div class="main-chat-and-groups-list-last-message">22:22</div>
       </div>
+      {% endfor %}
     </div>
   </div>
+
+  <!-- Chat-Inhalt -->
   <div class="main-chat-content">
     <div class="main-chat-content-header">
       <div class="main-chat-content-header-avatar-and-name">
         <div class="main-chat-content-header-avatar">
           <i class="bi bi-person-circle"></i>
         </div>
-        <div class="main-chat-content-header-name"><h4>Name Kollege</h4></div>
+        <div class="main-chat-content-header-name">
+          <h4 id="chat-name">Kein Chat ausgewählt</h4>
+        </div>
       </div>
       <div class="main-chat-content-header-buttons">
-        <button><i class="bi bi-search"></i></button>
-        <button><i class="bi bi-star"></i></button>
+        <button onclick="ChatDebug.getRoomInfo()" title="Raum-Info">
+          <i class="bi bi-info-circle"></i>
+        </button>
+        <button onclick="ChatDebug.leaveRoom()" title="Raum verlassen">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+        <button onclick="sendHarlemshake()" title="Harlemshake">
+          <i class="bi bi-emoji-dizzy"></i>
+        </button>
       </div>
     </div>
-    <div class="main-chat-content-message"></div>
+
+    <!-- Placeholder für Nachrichten -->
+    <div class="main-chat-content-message" id="chat-messages-container">
+      <div
+        class="no-chat-selected"
+        style="text-align: center; padding: 50px; color: #999"
+      >
+        <i
+          class="bi bi-chat-dots"
+          style="font-size: 4rem; margin-bottom: 1rem"
+        ></i>
+        <h5>Willkommen bei {{ app_config.app_name }}</h5>
+        <p>Wähle einen Chat aus der Liste, um zu beginnen.</p>
+        <p>
+          <small>Raum-Management aktiv | Nachrichten kommen in Phase 2</small>
+        </p>
+      </div>
+    </div>
+
+    <!-- Placeholder für Chat-Input (kommt in Phase 2) -->
+    <!-- 
+    <div class="main-chat-input-area" style="display: none;">
+      <div class="input-container">
+        <input 
+          type="text" 
+          id="messageInput" 
+          placeholder="Nachricht eingeben..."
+          autocomplete="off"
+        />
+        <button id="sendButton">
+          <i class="bi bi-send"></i>
+        </button>
+      </div>
+    </div>
+    -->
   </div>
 </div>
-{% endblock %}
+
+<!-- Debug-Panel (nur für Development) -->
+{% if config.DEBUG %}
+<div
+  id="debug-panel"
+  style="
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+  "
+>
+  <strong>Debug Panel</strong><br />
+  <button onclick="console.log(ChatDebug.status())" style="margin: 2px">
+    Status
+  </button>
+  <button onclick="ChatDebug.harlemshake()" style="margin: 2px">Shake</button>
+  <button
+    onclick="console.log('Current room:', currentChatRoom)"
+    style="margin: 2px"
+  >
+    Room
+  </button>
+</div>
+{% endif %} {% endblock %}

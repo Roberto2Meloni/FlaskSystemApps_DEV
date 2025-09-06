@@ -1,8 +1,11 @@
 import os
 import json
-from ..models import BasicChatGroupChat, BasicChatNormalChat
+from ..models import BasicChatGroupChat, BasicChatNormalChat, BasicChatChatMessages
 import secrets, string
 from app import db, app
+from sqlalchemy import or_
+from datetime import datetime
+from pytz import timezone
 
 
 # Variabeln
@@ -10,6 +13,10 @@ root_path = os.getcwd()
 config_file_path = os.path.join(
     root_path, "app", "imported_apps", "develop_release", "BasicChat", "app_config.json"
 )
+
+
+def get_current_time():
+    return datetime.now(tz=timezone("Europe/Zurich")).replace(second=0, microsecond=0)
 
 
 def get_app_config():
@@ -145,3 +152,76 @@ def get_global_chat_room_id():
     except Exception as e:
         app.logger.error(f"❌ Fehler beim Abrufen der globalen Chat-ID: {e}")
         return None
+
+
+def get_all_my_chats(current_user):
+    """
+    Holt alle Chats für den aktuellen User
+    """
+    # Group Chats wo User Mitglied oder Admin ist
+    group_chats = BasicChatGroupChat.query.filter(
+        or_(
+            BasicChatGroupChat.group_members == "*",  # Öffentliche Chats
+            BasicChatGroupChat.group_admins.contains(str(current_user.id)),
+            BasicChatGroupChat.group_members.contains(str(current_user.id)),
+        )
+    ).all()
+
+    # Normal Chats wo User teilnimmt
+    normal_chats = BasicChatNormalChat.query.filter(
+        or_(
+            BasicChatNormalChat.a_user_id == current_user.id,
+            BasicChatNormalChat.b_user_id == current_user.id,
+        )
+    ).all()
+
+    return group_chats + normal_chats
+
+
+def find_chat_by_room_number(chat_room_number, current_user):
+    """
+    Findet einen Chat anhand der room_number und prüft Berechtigungen
+    """
+    # Erst in Group Chats suchen
+    group_chat = BasicChatGroupChat.query.filter_by(
+        chat_room_number=chat_room_number
+    ).first()
+
+    if group_chat:
+        # Prüfe Berechtigung für Group Chat
+        if (
+            group_chat.group_members == "*"
+            or str(current_user.id) in (group_chat.group_admins or "")
+            or str(current_user.id) in (group_chat.group_members or "")
+        ):
+            return group_chat.to_dict(), "group", ""
+        else:
+            return None, None, "Keine Berechtigung"
+
+    # Dann in Normal Chats suchen
+    normal_chat = BasicChatNormalChat.query.filter_by(
+        chat_room_number=chat_room_number
+    ).first()
+
+    if normal_chat:
+        # Prüfe Berechtigung für Normal Chat
+        if (
+            current_user.id == normal_chat.a_user_id
+            or current_user.id == normal_chat.b_user_id
+        ):
+            return normal_chat.to_dict(), "normal", ""
+        else:
+            return None, None, "Keine Berechtigung"
+
+    return None, None, "Chat nicht gefunden"
+
+
+def find_chat_messages_by_room_number(chat_room_number, current_user):
+    chat, type, error_message = find_chat_by_room_number(chat_room_number, current_user)
+    if chat:
+        all_messages = BasicChatChatMessages.query.filter_by(
+            chat_room_number=chat_room_number
+        ).all()
+        return all_messages, type, error_message
+    else:
+        return None, None, error_message

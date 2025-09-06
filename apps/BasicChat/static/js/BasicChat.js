@@ -1,468 +1,314 @@
-// BasicChat.js - Vollständige Socket.IO Chat-Funktionalität
+// BasicChat.js - Raum-Management ohne Nachrichten-Funktionalität
 console.log("🚀 BasicChat Frontend geladen");
 
-class BasicChat {
-  constructor() {
-    this.messageInput = document.getElementById("messageInput");
-    this.sendButton = document.getElementById("sendButton");
-    this.chatMessages = document.getElementById("chatMessages");
+// === GLOBALE VARIABLEN ===
+let socket = null;
+let isConnected = false;
+let currentChatRoom = null;
 
-    // Socket.IO
-    this.socket = null;
-    this.isConnected = false;
-
-    // Benutzer-Info
-    this.currentUser = this.getCurrentUser();
-
-    this.initializeEventListeners();
-    this.clearExampleMessages();
-    this.initializeSocketIO();
-
-    console.log("✅ BasicChat initialisiert");
+// === SOCKET.IO INTEGRATION ===
+function initializeSocketIO() {
+  if (typeof io === "undefined") {
+    console.error("❌ Socket.IO nicht verfügbar!");
+    return;
   }
 
-  initializeEventListeners() {
-    // Send Button Click
-    this.sendButton.addEventListener("click", () => {
-      this.sendMessage();
-    });
+  console.log("🔌 Initialisiere Socket.IO...");
 
-    // Enter-Taste zum Senden
-    this.messageInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        this.sendMessage();
-      }
-    });
-
-    // Input-Status für Send-Button
-    this.messageInput.addEventListener("input", () => {
-      this.updateSendButton();
-    });
-
-    console.log("🎮 Event Listeners registriert");
+  try {
+    socket = io();
+    setupSocketEvents();
+  } catch (error) {
+    console.error("❌ Socket.IO Fehler:", error);
   }
+}
 
-  initializeSocketIO() {
-    if (typeof io === "undefined") {
-      console.error("❌ Socket.IO nicht verfügbar!");
-      this.addMessage("❌ Socket.IO nicht verfügbar", "system");
-      return;
+function setupSocketEvents() {
+  // === BASIS VERBINDUNGS-EVENTS ===
+  socket.on("connect", () => {
+    console.log("✅ Socket.IO verbunden!");
+    isConnected = true;
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ Socket.IO getrennt");
+    isConnected = false;
+    currentChatRoom = null;
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("❌ Verbindungsfehler:", error);
+  });
+
+  // === RAUM-MANAGEMENT EVENTS (mit SocketIOManager Prefix) ===
+  socket.on("BasicChat_room_joined_successfully", (data) => {
+    console.log(`✅ Erfolgreich Raum ${data.room_number} beigetreten`);
+    currentChatRoom = data.room_number;
+    updateUIForRoomJoin(data);
+  });
+
+  socket.on("BasicChat_room_left_successfully", (data) => {
+    console.log(`👋 Raum ${data.room_number} verlassen`);
+    currentChatRoom = null;
+    updateUIForRoomLeave(data);
+  });
+
+  socket.on("BasicChat_user_joined_room", (data) => {
+    console.log(`👤 ${data.username} ist Raum ${data.room_number} beigetreten`);
+    if (data.room_number === currentChatRoom) {
+      showRoomNotification(`${data.username} ist dem Chat beigetreten`, "join");
     }
+  });
 
-    console.log("🔌 Initialisiere Socket.IO...");
-
-    try {
-      this.socket = io();
-      this.setupBasicSocketEvents();
-    } catch (error) {
-      console.error("❌ Socket.IO Fehler:", error);
-      this.addMessage("❌ Verbindungsfehler", "system");
+  socket.on("BasicChat_user_left_room", (data) => {
+    console.log(`👋 ${data.username} hat Raum ${data.room_number} verlassen`);
+    if (data.room_number === currentChatRoom) {
+      const reason =
+        data.reason === "disconnected"
+          ? "die Verbindung verloren"
+          : "den Chat verlassen";
+      showRoomNotification(`${data.username} hat ${reason}`, "leave");
     }
-  }
+  });
 
-  setupBasicSocketEvents() {
-    // === BESTEHENDE EVENTS aus __init__.py nutzen ===
+  socket.on("BasicChat_room_info_response", (data) => {
+    console.log("🏠 Raum-Info:", data);
+    currentChatRoom = data.current_room;
+    updateUIForCurrentRoom(data);
+  });
 
-    this.socket.on("connect", () => {
-      console.log("✅ Socket.IO verbunden!");
-      this.isConnected = true;
-      this.addMessage("✅ Mit Server verbunden!", "system");
+  // === HARLEMSHAKE EVENT (bleibt global) ===
+  socket.on("BasicChat_do_the_harlemshake_reply", (data) => {
+    console.log("🕺 Harlemshake von:", data.sender, "Admin:", data.isAdmin);
 
-      // Trete dem globalen Chat bei
-      this.socket.emit("BasicChat_join_global_chat");
-    });
-
-    this.socket.on("disconnect", () => {
-      console.log("❌ Socket.IO getrennt");
-      this.isConnected = false;
-      this.addMessage("❌ Verbindung getrennt", "system");
-    });
-
-    // Nutzt bestehenden Handler aus __init__.py
-    this.socket.on("connection_response", (data) => {
-      console.log("📡 Server Antwort:", data);
-      this.addMessage(`Server: ${data.data}`, "system");
-    });
-
-    // Nutzt bestehenden Handler aus __init__.py
-    this.socket.on("status", (data) => {
-      console.log("📊 Status:", data);
-      this.addMessage(`Status: ${data.msg}`, "system");
-    });
-
-    // === NEUE CHAT EVENTS aus socketio_events.py ===
-
-    this.socket.on("new_message", (data) => {
-      console.log("💬 Neue Nachricht:", data);
-
-      // Bestimme ob es unsere eigene Nachricht ist
-      const isOwnMessage = data.username === this.currentUser.name;
-      const messageType = isOwnMessage ? "sent" : "received";
-
-      // Admin-Status prüfen (falls im Backend gesendet)
-      const isAdmin = data.is_admin || false;
-
-      this.addMessage(
-        data.message,
-        messageType,
-        data.username,
-        data.timestamp,
-        isAdmin
-      );
-    });
-
-    this.socket.on("user_joined_chat", (data) => {
-      console.log("👤+ Benutzer beigetreten:", data);
-      const adminBadge = data.is_admin ? " 👑" : "";
-      this.addMessage(
-        `${data.username}${adminBadge} ist dem Chat beigetreten`,
-        "system"
-      );
-    });
-
-    this.socket.on("BasicChat_do_the_harlemshake_reply", (data) => {
-      console.log("Harlemshake von:", data.sender, "Admin:", data.isAdmin);
-
-      // Wert extrahieren
-      let isAdmin = data.isAdmin;
-      let sender = data.sender;
-      let username = window.basicChat.currentUser.name;
-
-      // Prüfen ob true
-      if (isAdmin === true) {
-        console.log("Benutzer ist Admin");
+    if (data.isAdmin === true) {
+      doScreenShake();
+    } else {
+      const currentUser = getCurrentUser();
+      if (currentUser.name === data.sender) {
         doScreenShake();
-      } else {
-        console.log(
-          "Der Sender ist kein Admin und hat nichts zu sagen. Nur der nicht admin Sender dreht sich nun!"
-        );
-        if (username === sender) {
-          console.log("Du bist der Sender, mach den Harlemshake selber");
-          doScreenShake();
-        } else {
-          console.log("Du must hier nichts machen");
-        }
       }
-    });
-
-    function doScreenShake() {
-      // Animation sofort starten
-      document.body.style.transition = "transform 2s ease-in-out";
-      document.body.style.transform = "rotate(360deg)";
-
-      // Reset nach 2 Sekunden (wenn Animation fertig ist)
-      setTimeout(() => {
-        document.body.style.transform = "rotate(0deg)";
-      }, 2000);
     }
+  });
 
-    // Error handling
-    this.socket.on("connect_error", (error) => {
-      console.error("❌ Verbindungsfehler:", error);
-      this.addMessage("❌ Kann nicht mit Server verbinden", "system");
-    });
+  console.log("🎮 Socket.IO Events für Raum-Management registriert");
+}
 
-    this.socket.on("BasicChat_do_the_harlemshake_reply", () => {
-      console.log("Ich drehe den Bildschirm um 360 Grad");
-    });
-    console.log("🎮 Socket.IO Events registriert");
+// === RAUM-MANAGEMENT FUNKTIONEN ===
+function joinChatRoom(roomNumber) {
+  if (!socket || !isConnected) {
+    console.error("❌ Socket.IO nicht verbunden");
+    return false;
   }
 
-  getCurrentUser() {
-    const userName = document.querySelector(".sidebar-header .user-details h3");
-    return {
-      name: userName ? userName.textContent.trim() : "Unbekannt",
-      isAdmin: document.querySelector(".admin-badge") !== null,
-    };
+  console.log(`🏠 Betrete Chat-Raum: ${roomNumber}`);
+
+  socket.emit("BasicChat_join_chat_room", {
+    room_number: roomNumber,
+  });
+
+  return true;
+}
+
+function leaveChatRoom() {
+  if (!socket || !isConnected || !currentChatRoom) {
+    console.log("❌ Nicht in einem Raum oder nicht verbunden");
+    return false;
   }
 
-  clearExampleMessages() {
-    this.chatMessages.innerHTML = "";
+  console.log(`👋 Verlasse Chat-Raum: ${currentChatRoom}`);
+
+  socket.emit("BasicChat_leave_chat_room", {
+    room_number: currentChatRoom,
+  });
+
+  return true;
+}
+
+function getCurrentRoomInfo() {
+  if (!socket || !isConnected) {
+    console.error("❌ Socket.IO nicht verbunden");
+    return;
   }
 
-  sendMessage() {
-    const message = this.messageInput.value.trim();
-    if (message === "" || !this.isConnected) {
-      if (!this.isConnected) {
-        this.addMessage("❌ Nicht mit Server verbunden", "system");
-      }
-      return;
-    }
+  socket.emit("BasicChat_get_room_info");
+}
 
-    console.log("📤 Sende Nachricht:", message);
-
-    // Nachricht über Socket.IO senden (neuer Event aus socketio_events.py)
-    this.socket.emit("BasicChat_send_message", {
-      message: message,
-      timestamp: this.getCurrentTime(),
-    });
-
-    // Input zurücksetzen
-    this.messageInput.value = "";
-    this.updateSendButton();
-    this.messageInput.focus();
+// === UI UPDATE FUNKTIONEN ===
+function updateUIForRoomJoin(data) {
+  // Chat-Header aktualisieren wenn möglich
+  const chatNameElement = document.getElementById("chat-name");
+  if (chatNameElement) {
+    chatNameElement.textContent = `Raum: ${data.room_number}`;
   }
 
-  addMessage(
-    text,
-    type = "received",
-    sender = null,
-    timestamp = null,
-    isAdmin = false
-  ) {
-    const messageWrapper = document.createElement("div");
-    messageWrapper.className = `message-wrapper ${type}`;
+  showRoomNotification(`Du bist dem Chat beigetreten`, "success");
+}
 
-    // Nachrichtenbubble (OHNE Timestamp)
-    const message = document.createElement("div");
-    message.className = "message";
-
-    const time = timestamp || this.getCurrentTime();
-
-    if (type === "system") {
-      message.classList.add("system-message");
-      message.innerHTML = `<p>${this.escapeHtml(text)}</p>`;
-      messageWrapper.appendChild(message);
-    } else if (type === "received") {
-      const senderName = sender || "Anderer Benutzer";
-      const adminCrown = isAdmin ? '<span class="admin-crown">👑</span>' : "";
-
-      // NUR Sender und Text in der Bubble
-      message.innerHTML = `
-                <div class="message-sender">
-                    ${this.escapeHtml(senderName)}${adminCrown}
-                </div>
-                <p>${this.escapeHtml(text)}</p>
-            `;
-
-      messageWrapper.appendChild(message);
-
-      // Timestamp UNTER der Bubble als separates Element
-      const timestampDiv = document.createElement("div");
-      timestampDiv.className = "message-timestamp";
-      timestampDiv.textContent = time;
-      messageWrapper.appendChild(timestampDiv);
-    } else if (type === "sent") {
-      // NUR Text in der Bubble
-      message.innerHTML = `<p>${this.escapeHtml(text)}</p>`;
-
-      messageWrapper.appendChild(message);
-
-      // Timestamp UNTER der Bubble als separates Element
-      const timestampDiv = document.createElement("div");
-      timestampDiv.className = "message-timestamp";
-      timestampDiv.textContent = time;
-      messageWrapper.appendChild(timestampDiv);
-    }
-
-    this.chatMessages.appendChild(messageWrapper);
-    this.scrollToBottom();
+function updateUIForRoomLeave(data) {
+  const chatNameElement = document.getElementById("chat-name");
+  if (chatNameElement) {
+    chatNameElement.textContent = "Kein Chat ausgewählt";
   }
 
-  updateSendButton() {
-    const hasText = this.messageInput.value.trim().length > 0;
-    this.sendButton.disabled = !hasText || !this.isConnected;
+  showRoomNotification(`Du hast den Chat verlassen`, "info");
+}
 
-    if (hasText && this.isConnected) {
-      this.sendButton.style.background = "#00a884";
-    } else {
-      this.sendButton.style.background = "#8696a0";
-    }
-  }
-
-  scrollToBottom() {
-    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-  }
-
-  getCurrentTime() {
-    return new Date().toLocaleTimeString("de-DE", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  // === TEST FUNKTIONEN ===
-  testPing() {
-    if (this.socket && this.isConnected) {
-      console.log("🏓 Sende Ping...");
-      this.socket.emit("ping", { timestamp: this.getCurrentTime() });
-    }
-  }
-
-  // === ZUSÄTZLICHE FUNKTIONEN ===
-
-  clearChat() {
-    if (confirm("Möchten Sie alle Nachrichten löschen?")) {
-      this.chatMessages.innerHTML = "";
-      this.addMessage("Chat wurde geleert", "system");
-    }
-  }
-
-  reconnect() {
-    if (this.socket) {
-      console.log("🔄 Reconnecting...");
-      this.socket.disconnect();
-      this.socket.connect();
-    }
-  }
-
-  getConnectionStatus() {
-    return {
-      connected: this.isConnected,
-      socket: this.socket ? "initialized" : "not initialized",
-      user: this.currentUser,
-    };
+function updateUIForCurrentRoom(data) {
+  if (data.is_in_room && data.current_room) {
+    console.log(`📍 Aktuell in Raum: ${data.current_room}`);
+  } else {
+    console.log("📍 Nicht in einem Raum");
   }
 }
 
-// Chat initialisieren wenn DOM bereit ist
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("🏁 DOM bereit - starte BasicChat");
-  window.basicChat = new BasicChat();
-});
+function showRoomNotification(message, type = "info") {
+  console.log(`📢 ${type.toUpperCase()}: ${message}`);
 
-// === DEBUG-FUNKTIONEN FÜR DIE KONSOLE ===
-window.ChatDebug = {
-  // Nutzt bestehenden ping Handler aus __init__.py
-  ping: () => {
-    if (window.basicChat) {
-      window.basicChat.testPing();
-    }
-  },
-
-  // Nutzt neuen BasicChat_send_message Handler aus socketio_events.py
-  sendMessage: (text, isAdmin = false) => {
-    if (window.basicChat && window.basicChat.isConnected) {
-      // Zum Testen können wir Admin-Status simulieren
-      if (isAdmin) {
-        window.basicChat.addMessage(
-          text,
-          "received",
-          "Admin User",
-          new Date().toLocaleTimeString("de-DE", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          true
-        );
-      } else {
-        window.basicChat.socket.emit("BasicChat_send_message", {
-          message: text,
-          timestamp: new Date().toLocaleTimeString("de-DE", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        });
-      }
-    } else {
-      console.log("❌ Chat nicht verbunden oder nicht initialisiert");
-    }
-  },
-
-  // Nutzt neuen BasicChat_join_global_chat Handler aus socketio_events.py
-  joinChat: () => {
-    if (window.basicChat && window.basicChat.isConnected) {
-      window.basicChat.socket.emit("BasicChat_join_global_chat");
-    } else {
-      console.log("❌ Chat nicht verbunden");
-    }
-  },
-
-  // Chat-Status abrufen
-  status: () => {
-    if (window.basicChat) {
-      return window.basicChat.getConnectionStatus();
-    }
-    return "BasicChat nicht initialisiert";
-  },
-
-  // Lokale Test-Nachricht hinzufügen
-  addTestMessage: (
-    text,
-    type = "received",
-    sender = "TestUser",
-    isAdmin = false
-  ) => {
-    if (window.basicChat) {
-      window.basicChat.addMessage(text, type, sender, null, isAdmin);
-    }
-  },
-
-  // Chat leeren
-  clearChat: () => {
-    if (window.basicChat) {
-      window.basicChat.clearChat();
-    }
-  },
-
-  // Verbindung neu starten
-  reconnect: () => {
-    if (window.basicChat) {
-      window.basicChat.reconnect();
-    }
-  },
-
-  // Mehrere Test-Nachrichten für Design-Tests
-  simulateConversation: () => {
-    if (!window.basicChat) return;
-
-    const messages = [
-      { text: "Hallo zusammen!", sender: "Alice", isAdmin: false },
-      { text: "Herzlich willkommen!", sender: "Bob", isAdmin: true },
-      { text: "Wie geht es euch heute?", sender: "Charlie", isAdmin: false },
-      { text: "Das Wetter ist heute schön!", sender: "Diana", isAdmin: false },
-    ];
-
-    messages.forEach((msg, index) => {
-      setTimeout(() => {
-        window.basicChat.addMessage(
-          msg.text,
-          "received",
-          msg.sender,
-          null,
-          msg.isAdmin
-        );
-      }, index * 1000);
-    });
-  },
-};
-
-// === GLOBALE HILFSFUNKTIONEN ===
-
-// Prüfung ob Socket.IO verfügbar ist
-function checkSocketIOAvailability() {
-  return typeof io !== "undefined";
+  // TODO: Hier könnte eine Toast-Notification oder ähnliches angezeigt werden
+  // Für jetzt nur Console-Output
 }
 
-// Chat-Instanz abrufen
-function getChatInstance() {
-  return window.basicChat || null;
+// === HILFSFUNKTIONEN ===
+function getCurrentUser() {
+  const userElement = document.querySelector(".main-sidbar-profil p");
+  const isAdmin = document.querySelector('[href="#"]') !== null;
+
+  return {
+    name: userElement ? userElement.textContent.trim() : "Unbekannt",
+    isAdmin: isAdmin,
+  };
+}
+
+function extractRoomNumberFromUrl(url) {
+  const match = url.match(/\/([^\/]+)$/);
+  return match ? match[1] : null;
+}
+
+function doScreenShake() {
+  document.body.style.transition = "transform 2s ease-in-out";
+  document.body.style.transform = "rotate(360deg)";
+
+  setTimeout(() => {
+    document.body.style.transform = "rotate(0deg)";
+  }, 2000);
+}
+
+// === CHAT LADEN FUNKTIONEN (erweitert) ===
+function loadChat(load_chat_url, load_chat_messages_url) {
+  console.log("📥 Lade Chat von:", load_chat_url);
+
+  // Chat-Raum-Nummer aus URL extrahieren
+  const roomNumber = extractRoomNumberFromUrl(load_chat_url);
+
+  // Raum beitreten (falls roomNumber vorhanden)
+  if (roomNumber) {
+    joinChatRoom(roomNumber);
+  }
+
+  // Chat-Informationen laden
+  fetch(load_chat_url)
+    .then((response) => response.json())
+    .then((data) => {
+      setTimeout(() => modifyChat(data), 100);
+    })
+    .catch((error) => {
+      console.error("❌ Fehler beim Laden des Chats:", error);
+    });
+
+  // Chat-Nachrichten laden (Placeholder)
+  fetch(load_chat_messages_url)
+    .then((response) => response.json())
+    .then((data) => {
+      setTimeout(() => modifyChatMessages(data), 100);
+    })
+    .catch((error) => {
+      console.error("❌ Fehler beim Laden der Nachrichten:", error);
+    });
+}
+
+function modifyChat(data) {
+  const { chat, type, error_message } = data;
+  console.log("Chat-Daten:", chat);
+  console.log("Chat-Typ:", type);
+
+  if (chat && chat.group_name) {
+    const chatNameElement = document.getElementById("chat-name");
+    if (chatNameElement) {
+      chatNameElement.innerHTML = chat.group_name;
+    }
+  }
+
+  if (error_message) {
+    console.error("Chat-Fehler:", error_message);
+    showRoomNotification(`Fehler: ${error_message}`, "error");
+  }
+}
+
+function modifyChatMessages(data) {
+  console.log("Nachrichten-Daten:", data);
+
+  if (data.success && data.info) {
+    console.log("ℹ️", data.info);
+  }
+
+  // Placeholder - echte Nachrichten kommen in Phase 2
+  if (data.messages && data.messages.length > 0) {
+    console.log(`📨 ${data.messages.length} Nachrichten geladen`);
+  }
+}
+
+// === HARLEMSHAKE FUNKTION ===
+function sendHarlemshake() {
+  if (socket && isConnected) {
+    const user = getCurrentUser();
+    console.log("🕺 Sende Harlemshake-Befehl");
+
+    socket.emit("BasicChat_do_the_harlemshake", {
+      name: user.name,
+      isAdmin: user.isAdmin,
+    });
+  } else {
+    console.log("❌ Nicht mit Socket verbunden");
+  }
 }
 
 // === INITIALISIERUNG ===
-console.log("📚 BasicChat Modul geladen - bereit für Initialisierung");
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("🏁 DOM bereit - BasicChat geladen");
 
-function doTheHarlemshake() {
-  if (window.basicChat && window.basicChat.isConnected) {
-    console.log(
-      "Ich will, dass alle den Harlemshake machen, sende befehl als Admin an Server"
-    );
-    let username = window.basicChat.currentUser.name;
-    let isAdmin = window.basicChat.currentUser.isAdmin;
+  // Socket.IO initialisieren
+  initializeSocketIO();
+});
 
-    console.log("Harlemshake von:", username);
+// === DEBUG-FUNKTIONEN ===
+window.ChatDebug = {
+  // Socket Status
+  status: () => {
+    return {
+      connected: isConnected,
+      socket: socket ? "initialized" : "not initialized",
+      currentRoom: currentChatRoom,
+    };
+  },
 
-    // Daten als Objekt senden
-    window.basicChat.socket.emit("BasicChat_do_the_harlemshake", {
-      name: username,
-      isAdmin: isAdmin,
-    });
-  }
-}
+  // Raum-Management
+  joinRoom: (roomNumber) => {
+    return joinChatRoom(roomNumber);
+  },
+
+  leaveRoom: () => {
+    return leaveChatRoom();
+  },
+
+  getRoomInfo: () => {
+    getCurrentRoomInfo();
+  },
+
+  // Harlemshake testen
+  harlemshake: () => {
+    sendHarlemshake();
+  },
+};
+
+console.log("📚 BasicChat Modul geladen - Raum-Management aktiv");
