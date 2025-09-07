@@ -181,6 +181,7 @@ def get_all_my_chats(current_user):
 def find_chat_by_room_number(chat_room_number, current_user):
     """
     Findet einen Chat anhand der room_number und prüft Berechtigungen
+    Rückgabe: chat, chat_type, error_message
     """
     # Erst in Group Chats suchen
     group_chat = BasicChatGroupChat.query.filter_by(
@@ -225,3 +226,33 @@ def find_chat_messages_by_room_number(chat_room_number, current_user):
         return all_messages, type, error_message
     else:
         return None, None, error_message
+
+
+def safe_new_message(chat_room_number, chat_type, chat_id, message, current_user):
+    """
+    Gebe dict von Nachricht zurück, damit dies emitet werden kann
+    """
+    new_message = BasicChatChatMessages(
+        message=message,
+        user_id=current_user.id,
+        chat_room_number=chat_room_number,
+        chat_type=chat_type,
+    )
+    if chat_type == "group":
+        new_message.group_chat_id = chat_id
+    else:
+        new_message.normal_chat_id = chat_id
+    db.session.add(new_message)
+    db.session.commit()
+    return new_message.to_dict()
+
+
+def get_all_messages_from_chat_room(chat_room_number):
+    all_messages = (
+        BasicChatChatMessages.query.filter_by(chat_room_number=chat_room_number)
+        .order_by(BasicChatChatMessages.created_at)
+        .all()
+    )
+    return [
+        message.to_dict() for message in all_messages
+    ]  # Username ist automatisch dabei

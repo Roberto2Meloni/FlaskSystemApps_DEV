@@ -10,6 +10,9 @@ content %}
       <p>{{ current_user.username }}</p>
     </div>
     <div class="main-sidbar-settings-and-apps">
+      <button onclick="sendHarlemshake()" title="Harlemshake">
+        <i class="bi bi-emoji-dizzy"></i>
+      </button>
       {% if current_user|has_admin_rights %}
       <a href="#"><i class="sidebar-icon bi bi-gear-fill"></i></a>
       {% endif %}
@@ -111,12 +114,6 @@ content %}
         <button onclick="ChatDebug.getRoomInfo()" title="Raum-Info">
           <i class="bi bi-info-circle"></i>
         </button>
-        <button onclick="ChatDebug.leaveRoom()" title="Raum verlassen">
-          <i class="bi bi-box-arrow-right"></i>
-        </button>
-        <button onclick="sendHarlemshake()" title="Harlemshake">
-          <i class="bi bi-emoji-dizzy"></i>
-        </button>
       </div>
     </div>
 
@@ -139,12 +136,16 @@ content %}
     </div>
 
     <!-- Placeholder für Chat-Input (kommt in Phase 2) -->
-    <!-- 
-    <div class="main-chat-input-area" style="display: none;">
+    <!-- Chat-Input Area -->
+    <div
+      class="main-chat-input-area"
+      id="chat-input-area"
+      style="display: none"
+    >
       <div class="input-container">
-        <input 
-          type="text" 
-          id="messageInput" 
+        <input
+          type="text"
+          id="messageInput"
           placeholder="Nachricht eingeben..."
           autocomplete="off"
         />
@@ -153,7 +154,6 @@ content %}
         </button>
       </div>
     </div>
-    -->
   </div>
 </div>
 

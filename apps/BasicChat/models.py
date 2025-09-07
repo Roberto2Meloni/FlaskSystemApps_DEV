@@ -89,21 +89,21 @@ class BasicChatChatMessages(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     message = db.Column(db.Text)
     created_at = db.Column(db.DateTime, index=True, default=get_current_time)
-
-    # NEU: Direkte room_number Referenz
-    chat_room_number = db.Column(
-        db.String(64), index=True, nullable=True
-    )  # Erst nullable für Migration
-
-    # Chat-Zuordnung (behalten für Backward-Compatibility)
+    chat_room_number = db.Column(db.String(64), index=True, nullable=True)
     chat_type = db.Column(db.String(32), index=True, nullable=False)
+
+    # ✅ HINZUFÜGEN: Fehlende user_id Spalte
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
     group_chat_id = db.Column(
         db.Integer, db.ForeignKey("basicchat_group_chat.id"), nullable=True
     )
     normal_chat_id = db.Column(
         db.Integer, db.ForeignKey("basicchat_normal_chat.id"), nullable=True
     )
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # Relationship
+    user = db.relationship("User", backref="chat_messages")
 
     def to_dict(self):
         return {
@@ -113,4 +113,5 @@ class BasicChatChatMessages(db.Model):
             "chat_room_number": self.chat_room_number,
             "chat_type": self.chat_type,
             "user_id": self.user_id,
+            "username": self.user.username if self.user else "Unbekannt",  # ✅ NEU
         }

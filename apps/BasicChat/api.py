@@ -61,18 +61,22 @@ def get_chat_messages(chat_room_number):
             return jsonify(
                 {"success": False, "error": error_message, "messages": []}
             ), (403 if error_message == "Keine Berechtigung" else 404)
-
-        # Placeholder - keine echten Nachrichten yet
-        return jsonify(
-            {
-                "success": True,
-                "messages": [],
-                "count": 0,
-                "room_number": chat_room_number,
-                "chat_type": chat_type,
-                "info": "Nachrichten-Funktionalität kommt in Phase 2",
-            }
-        )
+        else:
+            all_messages = helper_basic_app.get_all_messages_from_chat_room(
+                chat_room_number
+            )
+            print(
+                f"Hier noch die NAchrichten aus dem raum {chat_room_number}: {all_messages}"
+            )
+            current_time = helper_basic_app.get_current_time()
+            return jsonify(
+                {
+                    "success": True,
+                    "messages": all_messages,
+                    "room_number": chat_room_number,
+                    "current_time": current_time,
+                }
+            )
 
     except Exception as e:
         print(f"❌ Fehler in get_chat_messages: {e}")

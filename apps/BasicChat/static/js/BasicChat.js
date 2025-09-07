@@ -77,6 +77,21 @@ function setupSocketEvents() {
     updateUIForCurrentRoom(data);
   });
 
+  socket.on("BasicChat_client_message_recieved", (data) => {
+    console.log("Neue Nachricht von Client:", data.message);
+    console.log("Aktuelle Zeit:", data.current_time);
+
+    // Element erstellen UND zum DOM hinzufügen
+    const messageElement = createMessageElement(data.message, data);
+    const chatContainer = document.getElementById("chat-messages-container");
+
+    if (chatContainer) {
+      chatContainer.appendChild(messageElement); // ✅ Jetzt wird es angezeigt!
+    } else {
+      console.error("Chat-Container nicht gefunden!");
+    }
+  });
+
   // === HARLEMSHAKE EVENT (bleibt global) ===
   socket.on("BasicChat_do_the_harlemshake_reply", (data) => {
     console.log("🕺 Harlemshake von:", data.sender, "Admin:", data.isAdmin);
@@ -136,12 +151,12 @@ function getCurrentRoomInfo() {
 
 // === UI UPDATE FUNKTIONEN ===
 function updateUIForRoomJoin(data) {
-  // Chat-Header aktualisieren wenn möglich
   const chatNameElement = document.getElementById("chat-name");
   if (chatNameElement) {
     chatNameElement.textContent = `Raum: ${data.room_number}`;
   }
 
+  showChatInput(); // ✅ NEU: Input anzeigen
   showRoomNotification(`Du bist dem Chat beigetreten`, "success");
 }
 
@@ -151,9 +166,9 @@ function updateUIForRoomLeave(data) {
     chatNameElement.textContent = "Kein Chat ausgewählt";
   }
 
+  hideChatInput(); // ✅ NEU: Input verstecken
   showRoomNotification(`Du hast den Chat verlassen`, "info");
 }
-
 function updateUIForCurrentRoom(data) {
   if (data.is_in_room && data.current_room) {
     console.log(`📍 Aktuell in Raum: ${data.current_room}`);
@@ -220,7 +235,7 @@ function loadChat(load_chat_url, load_chat_messages_url) {
   fetch(load_chat_messages_url)
     .then((response) => response.json())
     .then((data) => {
-      setTimeout(() => modifyChatMessages(data), 100);
+      setTimeout(() => modifyChatMessages(data, roomNumber), 100);
     })
     .catch((error) => {
       console.error("❌ Fehler beim Laden der Nachrichten:", error);
@@ -245,14 +260,38 @@ function modifyChat(data) {
   }
 }
 
-function modifyChatMessages(data) {
+function modifyChatMessages(data, room_number) {
   console.log("Nachrichten-Daten:", data);
-
-  if (data.success && data.info) {
-    console.log("ℹ️", data.info);
+  // Chat-Container finden
+  const chatContainer = document.getElementById("chat-messages-container");
+  if (!chatContainer) {
+    console.error("Chat-Container nicht gefunden!");
+    return;
   }
 
-  // Placeholder - echte Nachrichten kommen in Phase 2
+  // Container leeren (Placeholder entfernen)
+  chatContainer.innerHTML = "";
+
+  if (data.success && data.room_number === room_number) {
+    console.log("System meldet Sucess True und Room-Nummer stimmt");
+    console.log("Hier die Nachrichten:", data.messages);
+  } else {
+    console.log("System meldet Sucess True und Room-Nummer stimmt nicht");
+    console.log("Hier die Nachrichten:", data.messages);
+    return;
+  }
+  // Prüfen ob Nachrichten vorhanden
+  if (data.messages && data.messages.length > 0) {
+    console.log(`📨 ${data.messages.length} Nachrichten geladen`);
+
+    // Für jede Nachricht ein HTML-Element erstellen
+    data.messages.forEach((message) => {
+      const messageElement = createMessageElement(message, data);
+      chatContainer.appendChild(messageElement);
+    });
+  }
+
+  // Falls der Chat Leer ist, dann kann eine standart Nachritch im Gui angezeigt werden. Noch nichts los hier, schreibe denen Compadres ;)
   if (data.messages && data.messages.length > 0) {
     console.log(`📨 ${data.messages.length} Nachrichten geladen`);
   }
@@ -263,6 +302,7 @@ function sendHarlemshake() {
   if (socket && isConnected) {
     const user = getCurrentUser();
     console.log("🕺 Sende Harlemshake-Befehl");
+    console.log(user);
 
     socket.emit("BasicChat_do_the_harlemshake", {
       name: user.name,
@@ -279,6 +319,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Socket.IO initialisieren
   initializeSocketIO();
+  initializeMessageInput(); // ✅ NEU
 });
 
 // === DEBUG-FUNKTIONEN ===
@@ -297,10 +338,6 @@ window.ChatDebug = {
     return joinChatRoom(roomNumber);
   },
 
-  leaveRoom: () => {
-    return leaveChatRoom();
-  },
-
   getRoomInfo: () => {
     getCurrentRoomInfo();
   },
@@ -311,4 +348,122 @@ window.ChatDebug = {
   },
 };
 
+function initializeMessageInput() {
+  const messageInput = document.getElementById("messageInput");
+  const sendButton = document.getElementById("sendButton");
+
+  if (!messageInput || !sendButton) return;
+
+  // Send Button Click
+  sendButton.addEventListener("click", () => {
+    sendMessage();
+  });
+
+  // Enter-Taste
+  messageInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  console.log("✅ Message Input initialisiert");
+}
+
+function showChatInput() {
+  document.getElementById("chat-input-area").style.display = "block";
+}
+
+function hideChatInput() {
+  document.getElementById("chat-input-area").style.display = "none";
+}
 console.log("📚 BasicChat Modul geladen - Raum-Management aktiv");
+
+function sendMessage() {
+  const messageInput = document.getElementById("messageInput");
+  const message = messageInput.value.trim();
+
+  if (!message) {
+    console.log("❌ Leere Nachricht");
+    return;
+  }
+
+  if (!currentChatRoom) {
+    console.log("❌ Kein Chat ausgewählt");
+    return;
+  }
+
+  console.log(`📤 Sende Nachricht: "${message}" an Raum: ${currentChatRoom}`);
+
+  // TODO: Hier kommt später die Socket.IO Logik
+  socket.emit("BasicChat_send_message", {
+    message: message,
+    room_number: currentChatRoom,
+  });
+
+  // Input leeren
+  messageInput.value = "";
+}
+
+// Hilfsfunktion: HTML-Element für eine Nachricht erstellen
+function createMessageElement(message, data) {
+  // === 1. HAUPT-CONTAINER ERSTELLEN ===
+  const messageDiv = document.createElement("div");
+
+  // === 2. CSS-KLASSEN BASIEREND AUF ABSENDER ===
+  const currentUser = getCurrentUser();
+  if (message.username === currentUser.name) {
+    // Eigene Nachricht - rechtsbündig
+    messageDiv.className = "chat-message-container chat-message-container-self";
+  } else {
+    // Fremde Nachricht - linksbündig
+    messageDiv.className = "chat-message-container";
+  }
+
+  // === 3. BENUTZER-INFO ELEMENT ===
+  const userInfo = document.createElement("div");
+  userInfo.className = "chat-message-user-info";
+  userInfo.textContent = message.username || "Unbekannt";
+
+  // === 4. NACHRICHTEN-TEXT ELEMENT ===
+  const messageText = document.createElement("div");
+  messageText.className = "chat-message-text";
+  // HIER den eigentlichen Nachrichtentext hinzufügen:
+  messageText.textContent = message.message || "Leere Nachricht";
+
+  // === 5. DATUM/ZEIT FOOTER ===
+  const footer = document.createElement("div");
+  footer.className = "chat-message-footer";
+
+  if (message.created_at) {
+    const messageDate = new Date(message.created_at);
+    const currentDate = new Date(data.current_time);
+
+    const isToday = messageDate.toDateString() === currentDate.toDateString();
+
+    if (isToday) {
+      footer.textContent = messageDate.toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      const time = messageDate.toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const date = messageDate.toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+      footer.textContent = `${time} / ${date}`;
+    }
+  }
+
+  // === 6. ALLES ZUSAMMENSETZEN ===
+  messageDiv.appendChild(userInfo); // Username oben
+  messageDiv.appendChild(messageText); // Nachricht in der Mitte
+  messageDiv.appendChild(footer); // Zeit unten
+
+  return messageDiv;
+}

@@ -177,7 +177,184 @@ body {
 
 .main-chat-content-message {
     display: flex;
-    flex: 1;
     flex-direction: column;
     background-color: var(--chat-background-color);
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 0;
+    height: 500px;
+}
+
+/* 4. NEUE CSS-REGELN für Chat Input */
+.main-chat-input-area {
+    flex-shrink: 0;
+    /* Verhindert Schrumpfen */
+    background-color: var(--secondary-green);
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+    margin: 0;
+}
+
+.input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: white;
+    border-radius: 25px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#messageInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    background: transparent;
+    color: #333;
+    border-radius: 20px;
+}
+
+#messageInput::placeholder {
+    color: #666;
+    font-style: italic;
+}
+
+#sendButton {
+    width: 45px;
+    height: 45px;
+    background-color: var(--primary-green);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+#sendButton:hover {
+    background-color: var(--hover-green);
+}
+
+#sendButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+#sendButton:active {
+    transform: scale(0.95);
+}
+
+/* 5. No-Chat-Selected zentrieren */
+.no-chat-selected {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+    color: #666;
+}
+
+/* 6. Scrollbar-Styling für Messages */
+.main-chat-content-message::-webkit-scrollbar {
+    width: 8px;
+}
+
+.main-chat-content-message::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.main-chat-content-message::-webkit-scrollbar-thumb {
+    background-color: var(--hover-green);
+    border-radius: 4px;
+}
+
+.main-chat-content-message::-webkit-scrollbar-thumb:hover {
+    background-color: var(--secondary-green);
+}
+
+/* 7. Responsive Anpassungen */
+@media (max-width: 768px) {
+    .main-chat-input-area {
+        padding: 10px;
+    }
+
+    .input-container {
+        padding: 6px;
+    }
+
+    #messageInput {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    #sendButton {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+/* 6. Chat-Nachrichten */
+.chat-messages-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-message-container {
+    display: flex;
+    flex-direction: column;
+    width: 70%;
+    border-radius: 0 10px 0 10px;
+    border-color: black;
+    border-width: 1px;
+    border-style: solid;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+.chat-message-container-self {
+    display: flex;
+    flex-direction: column;
+    margin-left: auto;
+    width: 70%;
+    border-radius: 10px 0 10px 0;
+    border-color: black;
+    border-width: 1px;
+    border-style: solid;
+    margin-bottom: 10px;
+    align-self: flex-end;
+    padding: 5px;
+}
+
+.chat-message-user-info {
+    /* Hier kommt der Benutzername rein */
+    font-size: 12px;
+    font-weight: bold;
+    border-bottom: 1px dashed #796f6f;
+}
+
+.chat-message-container-self .chat-message-user-info {
+    text-align: right;
+}
+
+.chat-message-text {
+    /* Hier stehen die Nachrichten */
+    border-bottom: 1px dotted #796f6f;
+}
+
+.chat-message-footer {
+    /* Hier kommt der Datum rein */
+    font-size: 8px;
+}
+
+.chat-message-container-self .chat-message-footer {
+    text-align: right;
 }

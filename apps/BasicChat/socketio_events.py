@@ -4,6 +4,10 @@ from app import socketio
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
 from flask import request
+from app.helper_functions.helper_db_file import check_if_user_has_admin_rights
+from app.routes.admin.models import User
+from app import app
+from .helper_app_functions import helper_basic_app
 
 # Aktueller Raum des Users (pro Session)
 user_current_rooms = {}
@@ -21,7 +25,6 @@ def handle_join_chat_room(data):
     if not room_number:
         print("❌ Keine room_number angegeben")
         return
-
     # Username ermitteln
     if current_user.is_authenticated:
         username = current_user.username
@@ -30,25 +33,21 @@ def handle_join_chat_room(data):
         username = f"Gast_{request.sid[:6]}"
         user_id = None
 
-    # Alten Raum verlassen (falls vorhanden)
-    # Diese Funktion wurde aus Desing gründen auskomentiert aber beibehalten, da dies als Beispiel Code gnutzt wird
-    # old_room = user_current_rooms.get(request.sid)
-    # if old_room:
-    #     leave_room(old_room)
-    #     print(f"👤 {username} hat Raum {old_room} verlassen")
-
-    #     # ✅ KORRIGIERT: Standard emit() verwenden
-    #     emit(
-    #         "BasicChat_user_left_room",
-    #         {"username": username, "room_number": old_room, "user_id": user_id},
-    #         room=old_room,
-    #         include_self=False,
-    #     )
-
     # Neuem Raum beitreten
     join_room(room_number)
     user_current_rooms[request.sid] = room_number
     print(f"👤 {username} ist Raum {room_number} beigetreten")
+
+    # DEBUG: Anzahl und Namen der User im Raum anzeigen
+    users_in_room = []
+    for sid, room in user_current_rooms.items():
+        if room == room_number:
+            # Versuche Username zu ermitteln (schwierig ohne Session-Info)
+            users_in_room.append(f"SID_{sid[:6]}")
+
+    print(f"🏠 DEBUG: Raum {room_number} hat jetzt {len(users_in_room)} User")
+    print(f"🏠 DEBUG: User im Raum: {', '.join(users_in_room)}")
+    print(f"🏠 DEBUG: Alle aktiven Rooms: {user_current_rooms}")
 
     emit(
         "BasicChat_user_joined_room",
@@ -56,7 +55,6 @@ def handle_join_chat_room(data):
         room=room_number,
         include_self=False,
     )
-
     # Bestätigung an den User selbst
     emit(
         "BasicChat_room_joined_successfully",
@@ -130,7 +128,9 @@ def handle_do_the_harlemshake(data):
     Event: BasicChat_do_the_harlemshake
     """
     name = data.get("name", "Unbekannt")
-    is_admin = data.get("isAdmin", False)
+    this_user = User.query.filter_by(username=name).first()
+    is_admin = check_if_user_has_admin_rights(app, this_user.id)
+    # check_if_user_has_admin_rights
     print(f"🕺 Harlemshake Befehl von {name}. Admin Status: {is_admin}")
 
     # Global an alle senden (ohne App-Prefix für globale Events)
@@ -139,6 +139,63 @@ def handle_do_the_harlemshake(data):
         {"sender": name, "isAdmin": is_admin},
         broadcast=True,
     )
+
+
+@socketio.on("BasicChat_send_message")
+def handle_send_message(data):
+    this_message = data.get("message")
+    this_room_number = data.get("room_number")
+    current_time = helper_basic_app.get_current_time()
+    print(
+        f"Neue Nachricht | Raum: {this_room_number} | User: {current_user.username} | Nachricht: {this_message}"
+    )
+
+    print("🔍 DEBUG: Prüfe Berechtigung...")
+    try:
+        chat, chat_type, error_message = helper_basic_app.find_chat_by_room_number(
+            this_room_number, current_user
+        )
+        print(
+            f"🔍 DEBUG: Berechtigung geprüft - chat: {chat is not None}, error: {error_message}"
+        )
+    except Exception as e:
+        print(f"❌ FEHLER bei Berechtigung: {e}")
+        return
+
+    if chat is None:
+        print("🔍 DEBUG: Sende Fehler-Response...")
+        emit(
+            "BasicChat_client_message_recieved",
+            {"success": False, "error": error_message},
+        )
+    else:
+        print("🔍 DEBUG: Speichere Nachricht...")
+        try:
+
+            json_new_message = helper_basic_app.safe_new_message(
+                this_room_number, chat_type, chat["id"], this_message, current_user
+            )
+            print(
+                f"🔍 DEBUG: Nachricht gespeichert, sende an Room {this_room_number}..."
+            )
+
+            emit(
+                "BasicChat_client_message_recieved",
+                {
+                    "success": True,
+                    "error": "",
+                    "message": json_new_message,
+                    "current_time": current_time.isoformat(),
+                },
+                room=this_room_number,
+            )
+            print("✅ DEBUG: emit() erfolgreich ausgeführt")
+
+        except Exception as e:
+            print(f"❌ FEHLER beim Speichern/Senden: {e}")
+            emit(
+                "BasicChat_client_message_recieved", {"success": False, "error": str(e)}
+            )
 
 
 # =============================================================================
