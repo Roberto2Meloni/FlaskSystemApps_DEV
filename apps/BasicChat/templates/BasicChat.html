@@ -1,6 +1,118 @@
 {% extends "layouts/web_app_layouts/BasicChat_web_app_base.html" %} {% block
 content %}
 <div class="main-container">
+  <!-- Modal für neuen Chat erstellen -->
+  <div
+    class="modal fade"
+    id="new-chat-modal-main"
+    tabindex="-1"
+    aria-labelledby="newChatModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="newChatModalLabel">
+            Neuen Chat erstellen
+          </h5>
+        </div>
+        <div class="modal-body">
+          <p>Was möchten Sie erstellen?</p>
+
+          <div class="form-group">
+            <div class="row">
+              <div class="col-6">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary w-100 chat-type-btn"
+                  data-chat-type="group"
+                  onclick="closeAndOpenNewModal('new-chat-modal-main', 'new-chat-modal-group')"
+                >
+                  <i class="bi bi-people-fill" style="font-size: 2rem"></i
+                  ><br />
+                  Neue Gruppe
+                </button>
+              </div>
+              <div class="col-6">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary w-100 chat-type-btn"
+                  data-chat-type="chat"
+                  onclick="selectChatType('chat')"
+                >
+                  <i class="bi bi-person-circle" style="font-size: 2rem"></i
+                  ><br />
+                  Neuer Chat
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-danger"
+            onclick="closeModal('new-chat-modal-main')"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    class="modal fade"
+    id="new-chat-modal-group"
+    tabindex="-1"
+    aria-labelledby="newChatGroupModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="newChatGroupModalLabel">
+            Neue Gruppe erstellen
+          </h5>
+        </div>
+        <div class="modal-body">
+          <p>Geben Sie einen Namen für die neue Gruppe ein:</p>
+
+          <div class="form-group">
+            <label for="group-name-input">Gruppenname</label>
+            <input
+              class="form-control"
+              type="text"
+              id="group-name-input"
+              placeholder="z.B. Familie, Arbeit, Freunde..."
+              maxlength="50"
+            />
+          </div>
+
+          <small class="text-muted">
+            Der Gruppenname kann später noch geändert werden.
+          </small>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeAndOpenNewModal('new-chat-modal-group', 'new-chat-modal-main')"
+          >
+            Zurück
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            onclick="createGroupTest()"
+            id="confirmCreateGroup"
+          >
+            Gruppe erstellen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Sidebar -->
   <div class="main-sidbar">
     <div class="main-sidbar-profil">
@@ -29,7 +141,9 @@ content %}
         <h4>{{ app_config.app_name }}</h4>
       </div>
       <div class="main-chat-and-groups-buttons">
-        <button><i class="bi bi-person-plus-fill"></i></button>
+        <button onclick="openNewChatModal()">
+          <i class="bi bi-person-plus-fill"></i>
+        </button>
       </div>
     </div>
 

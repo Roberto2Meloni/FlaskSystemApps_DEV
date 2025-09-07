@@ -467,3 +467,78 @@ function createMessageElement(message, data) {
 
   return messageDiv;
 }
+
+// Chat erstellene
+
+// === DYNAMISCHE MODAL FUNKTIONEN ===
+function openModal(modalId) {
+  const modalElement = document.getElementById(modalId);
+  if (modalElement) {
+    modalElement.style.display = "block";
+    modalElement.classList.add("show");
+    document.body.classList.add("modal-open");
+  }
+}
+
+function closeModal(modalId) {
+  const modalElement = document.getElementById(modalId);
+  if (modalElement) {
+    modalElement.style.display = "none";
+    modalElement.classList.remove("show");
+  }
+
+  // Prüfen ob noch andere Modals offen sind
+  const openModals = document.querySelectorAll(".modal.show");
+  if (openModals.length === 0) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function closeAndOpenNewModal(closeModalId, openModalId) {
+  // Erstes Modal schließen
+  const closeModalElement = document.getElementById(closeModalId);
+  if (closeModalElement) {
+    closeModalElement.style.display = "none";
+    closeModalElement.classList.remove("show");
+  }
+
+  // Zweites Modal öffnen
+  const openModalElement = document.getElementById(openModalId);
+  if (openModalElement) {
+    openModalElement.style.display = "block";
+    openModalElement.classList.add("show");
+  }
+
+  // Body-Klasse bleibt (da ein Modal noch offen ist)
+  document.body.classList.add("modal-open");
+}
+
+function closeAllModals() {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.style.display = "none";
+    modal.classList.remove("show");
+  });
+  document.body.classList.remove("modal-open");
+}
+
+// === SPEZIFISCHE MODAL FUNKTIONEN ===
+function openNewChatModal() {
+  openModal("new-chat-modal-main");
+}
+
+function createGroupTest() {
+  const groupName = document.getElementById("group-name-input").value.trim();
+
+  if (!groupName) {
+    alert("Bitte geben Sie einen Gruppennamen ein!");
+    return;
+  }
+
+  // Test-Funktion
+  console.log(`Test: Neue Gruppe erstellt mit Namen: "${groupName}"`);
+  alert(`Test: Gruppe "${groupName}" wurde erstellt!`);
+
+  // Modal schließen und Input zurücksetzen
+  closeAllModals();
+  document.getElementById("group-name-input").value = "";
+}
