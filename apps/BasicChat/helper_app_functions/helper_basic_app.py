@@ -664,3 +664,99 @@ def cleanup_user_data(user_id):
         )
         db.session.rollback()
         return False
+
+
+def delete_all_messages_from_room_simple(chat_room_number):
+    """
+    Löscht alle Nachrichten aus einem Chat-Raum anhand der room_number
+    (Diese Funktion hatten wir schon - hier nochmal zur Vollständigkeit)
+    """
+    try:
+        # Alle Nachrichten mit dieser chat_room_number finden und löschen
+        deleted_count = BasicChatChatMessages.query.filter_by(
+            chat_room_number=chat_room_number
+        ).delete()
+
+        # Änderungen speichern
+        db.session.commit()
+
+        app.logger.warning(
+            f"🗑️ ADMIN-LÖSCHUNG: {deleted_count} Nachrichten aus Raum {chat_room_number} gelöscht"
+        )
+
+        return deleted_count
+
+    except Exception as e:
+        app.logger.error(f"❌ Fehler beim Löschen der Nachrichten: {e}")
+        db.session.rollback()
+        raise e
+
+
+def get_all_group_chats_for_admin():
+    """
+    Holt alle Gruppenchats mit Details für Admin-Verwaltung
+    """
+    try:
+        # Alle Gruppenchats laden
+        all_group_chats = BasicChatGroupChat.query.order_by(
+            BasicChatGroupChat.created_at.desc()
+        ).all()
+
+        group_chats_data = []
+
+        for chat in all_group_chats:
+            # Zusätzliche Statistiken berechnen
+            message_count = BasicChatChatMessages.query.filter_by(
+                group_chat_id=chat.id
+            ).count()
+
+            # Creator-Info laden
+            creator_username = "Unbekannt"
+            if chat.created_by_user_id:
+                creator = get_user_info(chat.created_by_user_id)
+                creator_username = creator["username"]
+
+            # Member-Count berechnen
+            member_count = 0
+            if chat.group_members and chat.group_members != "*":
+                member_ids = [
+                    id.strip()
+                    for id in chat.group_members.split(",")
+                    if id.strip().isdigit()
+                ]
+                member_count = len(member_ids)
+            elif chat.group_members == "*":
+                member_count = "Alle User"
+
+            # Chat-Daten zusammenstellen
+            chat_data = {
+                "id": chat.id,
+                "chat_room_number": chat.chat_room_number,
+                "group_name": chat.group_name,
+                "group_admins": chat.group_admins,
+                "group_members": chat.group_members,
+                "group_avatar_url": chat.group_avatar_url,
+                "created_at": chat.created_at.isoformat() if chat.created_at else None,
+                "last_message_date": (
+                    chat.last_message_date.isoformat()
+                    if chat.last_message_date
+                    else None
+                ),
+                "last_message": chat.last_message,
+                "created_by_user_id": chat.created_by_user_id,
+                # Zusätzliche Admin-Info
+                "creator_username": creator_username,
+                "member_count": member_count,
+                "message_count": message_count,
+            }
+
+            group_chats_data.append(chat_data)
+
+        app.logger.info(
+            f"📊 Admin-Anfrage: {len(group_chats_data)} Gruppenchats geladen"
+        )
+        return group_chats_data
+
+    except Exception as e:
+        app.logger.error(f"❌ Fehler beim Laden der Gruppenchats für Admin: {e}")
+        return []

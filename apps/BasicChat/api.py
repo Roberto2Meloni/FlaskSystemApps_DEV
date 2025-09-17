@@ -243,3 +243,56 @@ def api_user_info(user_id):
     except Exception as e:
         print(f"❌ Fehler in api_user_info: {e}")
         return jsonify({"success": False, "error": "Serverfehler"}), 500
+
+
+@blueprint.route("/api/delete_messages_room/<chat_room_number>", methods=["DELETE"])
+@admin_required
+def api_delete_messages_room(chat_room_number):
+    """
+    Löscht alle Nachrichten aus einem Chat-Raum (nur Admin)
+    """
+    try:
+        deleted_count = helper_basic_app.delete_all_messages_from_room_simple(
+            chat_room_number
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Alle Nachrichten aus Raum {chat_room_number} gelöscht",
+                "deleted_count": deleted_count,
+                "room_number": chat_room_number,
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Fehler beim Löschen der Nachrichten: {e}")
+        return (
+            jsonify(
+                {"success": False, "error": "Serverfehler beim Löschen der Nachrichten"}
+            ),
+            500,
+        )
+
+
+@blueprint.route("/api/admin/list_group_chats", methods=["GET"])
+@admin_required
+def api_admin_list_group_chats():
+    """
+    Listet alle Gruppenchats für Admin-Verwaltung auf
+    """
+    try:
+        group_chats = helper_basic_app.get_all_group_chats_for_admin()
+
+        return jsonify(
+            {"success": True, "groups": group_chats, "count": len(group_chats)}
+        )
+
+    except Exception as e:
+        print(f"❌ Fehler in api_admin_list_group_chats: {e}")
+        return (
+            jsonify(
+                {"success": False, "error": "Serverfehler beim Laden der Gruppenchats"}
+            ),
+            500,
+        )

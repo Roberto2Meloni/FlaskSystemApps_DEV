@@ -358,3 +358,83 @@ body {
 .chat-message-container-self .chat-message-footer {
     text-align: right;
 }
+
+.admin-group-item {
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    transition: background-color 0.2s;
+}
+
+.admin-group-item:hover {
+    background: #e9ecef;
+}
+
+.admin-group-item.selected {
+    background: #d1ecf1;
+    border-color: #17a2b8;
+}
+
+.group-info-details {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-left: 24px;
+}
+
+.max-height-300 {
+    max-height: 300px;
+}
+
+.overflow-auto {
+    overflow-y: auto;
+}
+
+/* Loading Animation */
+.admin-loading-item {
+    background: #f8f9fa;
+    border-radius: 4px;
+    height: 60px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.admin-loading-item::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.6),
+            transparent);
+    animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+/* Erweiterte Styles für Nachrichten-Counter */
+.admin-group-item .badge {
+    font-size: 0.75rem;
+    min-width: 60px;
+}
+
+.group-info-details strong {
+    color: #495057;
+}
+
+.admin-group-item.selected .badge {
+    background-color: #17a2b8 !important;
+}
