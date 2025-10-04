@@ -689,14 +689,26 @@ function closeAllModals() {
     modal.classList.remove("show");
   });
   document.body.classList.remove("modal-open");
+
+  // Schritt 1 zeigen
+  document.getElementById("step-1-group-name").style.display = "block";
+  document.getElementById("step-1-buttons").style.display = "block";
+
+  // Schritt 2 verstecken
+  document.getElementById("step-2-select-users").style.display = "none";
+  document.getElementById("step-2-buttons").style.display = "none";
 }
 
 function openNewChatModal() {
   openModal("new-chat-modal-main");
 }
 
-function createNewGroupChat(url_new_group_chat, url_group_members) {
+// Globale Variable für Gruppen-ID
+let currentGroupId = null;
+
+function createNewGroupChat(url_new_group_chat) {
   const groupName = document.getElementById("group-name-input").value.trim();
+  const step2SuccessMessage = document.getElementById("step-2-success-message");
 
   if (!groupName) {
     alert("Bitte Namen eingeben!");
@@ -712,17 +724,103 @@ function createNewGroupChat(url_new_group_chat, url_group_members) {
     .then((data) => {
       if (data.success) {
         console.log("Gruppe erstellt!", data.all_users);
-        document.getElementById("group-name-input").value = "";
+        step2SuccessMessage.innerHTML = `✅ Gruppe "${groupName}" wurde erstellt!`;
+
+        currentGroupId = data.group_chat.id;
+        createUserListInModal(data.all_users);
+
+        // Zu Schritt 2 wechseln (KEIN reload hier!)
+        showStep2();
+      } else {
+        alert("Fehler beim Erstellen!");
       }
     })
-    .catch((error) => alert("Fehler!"));
-
-  // closeAllModals();
+    .catch((error) => alert("Fehler: " + error));
 }
 
-function createUserListInModal(all_user_json) {}
+function showStep2() {
+  // Schritt 1 verstecken
+  document.getElementById("step-1-group-name").style.display = "none";
+  document.getElementById("step-1-buttons").style.display = "none";
 
-function addMemberToGroup(groupId, all_user_id) {}
+  // Schritt 2 zeigen
+  document.getElementById("step-2-select-users").style.display = "block";
+  document.getElementById("step-2-buttons").style.display = "block";
+}
+
+function createUserListInModal(all_users) {
+  const userList = document.getElementById("user-list");
+  userList.innerHTML = ""; // Leeren
+
+  all_users.forEach((user) => {
+    const checkbox = document.createElement("div");
+    checkbox.className = "form-check";
+    checkbox.innerHTML = `
+      <input 
+        class="form-check-input" 
+        type="checkbox" 
+        value="${user.id}" 
+        id="user-${user.id}"
+      >
+      <label class="form-check-label" for="user-${user.id}">
+       ${user.username}
+      </label>
+    `;
+    userList.appendChild(checkbox);
+  });
+}
+
+function addSelectedMembersToGroup(url_group_members) {
+  // Alle ausgewählten Checkboxen finden
+  const checkboxes = document.querySelectorAll("#user-list input:checked");
+  const selectedUserIds = Array.from(checkboxes).map((cb) => cb.value);
+
+  if (selectedUserIds.length === 0) {
+    alert("Keine Benutzer ausgewählt!");
+    return;
+  }
+
+  console.log("Füge Benutzer hinzu:", selectedUserIds);
+  console.log("Zur Gruppe:", currentGroupId);
+
+  // Hier später die separate Funktion aufrufen
+  addMemberToGroup(url_group_members, currentGroupId, selectedUserIds);
+}
+
+function addMemberToGroup(url_to_add_member, groupId, userIds) {
+  console.log("Gruppe ID:", groupId);
+  console.log("Benutzer IDs:", userIds);
+
+  fetch(url_to_add_member, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group_chat_id: groupId, all_user_id: userIds }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.success) {
+        console.log("Benutzer wurden erfolgreich hinzugefügt!");
+        alert(`${data.added_count} Benutzer hinzugefügt!`);
+
+        // JETZT erst die Seite neu laden
+        window.location.reload();
+      } else {
+        alert("Fehler: " + data.error);
+        closeAllModals();
+      }
+    })
+    .catch((error) => {
+      console.error("Fehler:", error);
+      alert("Netzwerkfehler!");
+      closeAllModals();
+    });
+}
+
+function skipAddMembersStep() {
+  // Input zurücksetzen
+  closeAllModals();
+  window.location.reload();
+}
 
 console.log("📚 BasicChat mit erweiterten Benutzerinformationen geladen");
 let adminGroupsData = [];

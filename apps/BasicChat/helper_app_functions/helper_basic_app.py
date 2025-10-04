@@ -1,14 +1,21 @@
 import os
 import json
-from ..models import BasicChatGroupChat, BasicChatNormalChat, BasicChatChatMessages
+from ..models import (
+    BasicChatGroupChat,
+    BasicChatNormalChat,
+    BasicChatChatMessages,
+    BasicChatGroupMembership,
+)
 import secrets, string
 from app import db, app
 from sqlalchemy import or_
 from datetime import datetime
 from pytz import timezone
 
+
 # ✅ NEU: User Model Import für Benutzerinformationen
 from app.routes.admin.models import User
+
 
 # Variabeln
 root_path = os.getcwd()
@@ -39,64 +46,81 @@ def creat_group_chat_number(existing_group_chat_numbers):
 
 
 def create_new_group_chat(group_name, current_user):
+    """Erstellt einen neuen Gruppenchat mit korrekter Membership"""
     try:
-
         all_numbers = get_all_chat_room_numbers()
         new_chat_number = creat_group_chat_number(all_numbers)
+
+        # ✅ KORRIGIERT: Legacy-Felder auf None/leer setzen
         new_group_chat = BasicChatGroupChat(
             chat_room_number=new_chat_number,
             group_name=group_name,
-            group_admins=current_user.id,
+            group_admins=None,  # ← Legacy, nicht mehr verwendet
+            group_members=None,  # ← Legacy, nicht mehr verwendet
             created_by_user_id=current_user.id,
         )
         db.session.add(new_group_chat)
+        db.session.flush()  # ← ID erhalten ohne zu committen
+
+        # ✅ Membership für Ersteller erstellen
+        creator_membership = BasicChatGroupMembership(
+            group_chat_id=new_group_chat.id,
+            user_id=current_user.id,
+            is_admin=True,
+            is_moderator=False,
+        )
+        db.session.add(creator_membership)
         db.session.commit()
+
+        print(f"✅ Gruppenchat '{group_name}' erstellt (ID: {new_group_chat.id})")
         return new_group_chat
+
     except Exception as e:
         db.session.rollback()
-        print(f"Fehler beim Erstellen eines neuen Gruppenchats: {e}")
+        print(f"❌ Fehler beim Erstellen des Gruppenchats: {e}")
+        raise
 
 
-def create_global_group_chat():  # ← KEIN app Parameter mehr!
-    """Erstellt globalen Chat falls er nicht existiert"""
+def create_global_group_chat():
+    """Erstellt globalen Chat mit korrekter Membership"""
     try:
         app.logger.debug("🔍 Prüfe ob globaler Chat existiert...")
 
-        # WICHTIG: no_autoflush für alle Database-Queries!
         with db.session.no_autoflush:
             existing_global_chat = BasicChatGroupChat.query.filter_by(
                 group_name="Global"
             ).first()
 
         if not existing_global_chat:
-            app.logger.warning(
-                "➕ Globaler Chat existiert nicht! Erstelle neuen Chat..."
-            )
+            app.logger.warning("➕ Globaler Chat existiert nicht! Erstelle...")
 
             all_numbers = get_all_chat_room_numbers()
-
-            # Neue eindeutige Nummer generieren
             new_number = creat_group_chat_number(all_numbers)
-            app.logger.debug(f"🔢 Neue globale Chat-Nummer: {new_number}")
 
-            # Globalen Chat erstellen
+            # ✅ KORRIGIERT: Globalen Chat erstellen
             new_global_group_chat = BasicChatGroupChat(
                 chat_room_number=new_number,
                 group_name="Global",
-                group_admins="",  # ← String statt Liste!
-                group_members="*",  # Alle Benutzer
-                created_by_user_id=1,  # Admin User ID
+                group_admins=None,  # ← Legacy
+                group_members="*",  # ← Legacy: Marker für "öffentlich"
+                created_by_user_id=1,
             )
-
             db.session.add(new_global_group_chat)
+            db.session.flush()  # ← ID erhalten
+
+            # ✅ Admin-Membership erstellen
+            admin_membership = BasicChatGroupMembership(
+                group_chat_id=new_global_group_chat.id,
+                user_id=1,  # Admin
+                is_admin=True,
+                is_moderator=False,
+            )
+            db.session.add(admin_membership)
             db.session.commit()
 
             app.logger.info("✅ Globaler Chat erfolgreich erstellt!")
-
         else:
-            app.logger.info(
-                "ℹ️ Globaler Chat existiert bereits - keine Aktion erforderlich"
-            )
+            app.logger.info("ℹ️ Globaler Chat existiert bereits")
 
     except Exception as e:
         app.logger.error(f"❌ Fehler beim Erstellen des globalen Chats: {e}")
@@ -164,50 +188,93 @@ def get_global_chat_room_id():
 
 def get_all_my_chats(current_user):
     """
-    Holt alle Chats für den aktuellen User
-    """
-    # Group Chats wo User Mitglied oder Admin ist
-    group_chats = BasicChatGroupChat.query.filter(
-        or_(
-            BasicChatGroupChat.group_members == "*",  # Öffentliche Chats
-            BasicChatGroupChat.group_admins.contains(str(current_user.id)),
-            BasicChatGroupChat.group_members.contains(str(current_user.id)),
-        )
-    ).all()
-
-    # Normal Chats wo User teilnimmt
-    normal_chats = BasicChatNormalChat.query.filter(
-        or_(
-            BasicChatNormalChat.a_user_id == current_user.id,
-            BasicChatNormalChat.b_user_id == current_user.id,
-        )
-    ).all()
-
-    return group_chats + normal_chats
-
-
-# ✅ NEU: Erweiterte Version mit Benutzerinformationen
-def get_all_my_chats_with_users(current_user):
-    """
-    Holt alle Chats für den aktuellen User MIT Benutzerinformationen
+    ✅ AKTUALISIERT: Holt alle Chats über Membership-Tabelle
     """
     try:
-        all_chats = []
+        # 1. Group Chats über Membership-Tabelle
+        user_memberships = BasicChatGroupMembership.query.filter_by(
+            user_id=current_user.id
+        ).all()
+        membership_chat_ids = [m.group_chat_id for m in user_memberships]
 
-        # 1. Group Chats wo User Mitglied oder Admin ist
-        group_chats = BasicChatGroupChat.query.filter(
+        # 2. FALLBACK: Alte Text-Felder (für Legacy-Daten)
+        legacy_chats = BasicChatGroupChat.query.filter(
             or_(
-                BasicChatGroupChat.group_members == "*",  # Öffentliche Chats
+                BasicChatGroupChat.group_members == "*",  # Öffentlich
                 BasicChatGroupChat.group_admins.contains(str(current_user.id)),
                 BasicChatGroupChat.group_members.contains(str(current_user.id)),
             )
         ).all()
+        legacy_chat_ids = [chat.id for chat in legacy_chats]
 
+        # 3. Kombinieren (unique IDs)
+        all_group_chat_ids = list(set(membership_chat_ids + legacy_chat_ids))
+
+        # Group Chats laden
+        group_chats = (
+            BasicChatGroupChat.query.filter(
+                BasicChatGroupChat.id.in_(all_group_chat_ids)
+            ).all()
+            if all_group_chat_ids
+            else []
+        )
+
+        # Normal Chats laden
+        normal_chats = BasicChatNormalChat.query.filter(
+            or_(
+                BasicChatNormalChat.a_user_id == current_user.id,
+                BasicChatNormalChat.b_user_id == current_user.id,
+            )
+        ).all()
+
+        return group_chats + normal_chats
+
+    except Exception as e:
+        app.logger.error(f"❌ Fehler beim Laden der Chats: {e}")
+        return []
+
+
+def get_all_my_chats_with_users(current_user):
+    """
+    ✅ AKTUALISIERT: Holt alle Chats MIT User-Info über Membership-Tabelle
+    """
+    try:
+        all_chats = []
+
+        # 1. Group Chats über Membership-Tabelle
+        user_memberships = BasicChatGroupMembership.query.filter_by(
+            user_id=current_user.id
+        ).all()
+        membership_chat_ids = [m.group_chat_id for m in user_memberships]
+
+        # 2. FALLBACK: Legacy-Daten
+        legacy_chats = BasicChatGroupChat.query.filter(
+            or_(
+                BasicChatGroupChat.group_members == "*",
+                BasicChatGroupChat.group_admins.contains(str(current_user.id)),
+                BasicChatGroupChat.group_members.contains(str(current_user.id)),
+            )
+        ).all()
+        legacy_chat_ids = [chat.id for chat in legacy_chats]
+
+        # 3. Kombinieren
+        all_group_chat_ids = list(set(membership_chat_ids + legacy_chat_ids))
+
+        # Group Chats laden
+        group_chats = (
+            BasicChatGroupChat.query.filter(
+                BasicChatGroupChat.id.in_(all_group_chat_ids)
+            ).all()
+            if all_group_chat_ids
+            else []
+        )
+
+        # Für jeden Group Chat: User-Info aus Membership laden
         for chat in group_chats:
             chat_dict = chat.to_dict()
             chat_dict["type"] = "group"
 
-            # Creator-Info hinzufügen
+            # Creator-Info
             if chat.created_by_user_id:
                 creator = User.query.get(chat.created_by_user_id)
                 chat_dict["creator_username"] = (
@@ -216,27 +283,39 @@ def get_all_my_chats_with_users(current_user):
                     else f"Gelöschter User (ID: {chat.created_by_user_id})"
                 )
 
-            # Member-Liste mit Usernamen (falls nicht "*")
-            if chat.group_members and chat.group_members != "*":
-                member_ids = [
-                    int(id.strip())
-                    for id in chat.group_members.split(",")
-                    if id.strip().isdigit()
-                ]
-                members = (
-                    User.query.filter(User.id.in_(member_ids)).all()
-                    if member_ids
-                    else []
-                )
+            # Members aus Membership-Tabelle
+            memberships = BasicChatGroupMembership.query.filter_by(
+                group_chat_id=chat.id
+            ).all()
+
+            member_ids = [m.user_id for m in memberships]
+            admin_ids = [m.user_id for m in memberships if m.is_admin]
+
+            if member_ids:
+                members = User.query.filter(User.id.in_(member_ids)).all()
                 chat_dict["members_with_names"] = [
-                    {"id": user.id, "username": user.username} for user in members
+                    {
+                        "id": user.id,
+                        "username": user.username,
+                        "is_admin": user.id in admin_ids,
+                    }
+                    for user in members
                 ]
             else:
-                chat_dict["members_with_names"] = []  # Öffentlicher Chat
+                chat_dict["members_with_names"] = []
+
+            # Admin-Liste
+            if admin_ids:
+                admins = User.query.filter(User.id.in_(admin_ids)).all()
+                chat_dict["admins_with_names"] = [
+                    {"id": user.id, "username": user.username} for user in admins
+                ]
+            else:
+                chat_dict["admins_with_names"] = []
 
             all_chats.append(chat_dict)
 
-        # 2. Normal Chats wo User teilnimmt
+        # Normal Chats
         normal_chats = BasicChatNormalChat.query.filter(
             or_(
                 BasicChatNormalChat.a_user_id == current_user.id,
@@ -248,14 +327,10 @@ def get_all_my_chats_with_users(current_user):
             chat_dict = chat.to_dict()
             chat_dict["type"] = "normal"
 
-            # Andere User-Info hinzufügen
             other_user_id = (
                 chat.b_user_id if chat.a_user_id == current_user.id else chat.a_user_id
             )
             other_user = User.query.get(other_user_id)
-
-            user_a = User.query.get(chat.a_user_id)
-            user_b = User.query.get(chat.b_user_id)
 
             chat_dict["other_user_id"] = other_user_id
             chat_dict["other_username"] = (
@@ -264,13 +339,6 @@ def get_all_my_chats_with_users(current_user):
                 else f"Gelöschter User (ID: {other_user_id})"
             )
             chat_dict["display_name"] = chat_dict["other_username"]
-
-            chat_dict["user_a_username"] = (
-                user_a.username if user_a else f"Gelöschter User (ID: {chat.a_user_id})"
-            )
-            chat_dict["user_b_username"] = (
-                user_b.username if user_b else f"Gelöschter User (ID: {chat.b_user_id})"
-            )
 
             all_chats.append(chat_dict)
 
@@ -320,25 +388,35 @@ def find_chat_by_room_number(chat_room_number, current_user):
     return None, None, "Chat nicht gefunden"
 
 
-# ✅ NEU: Erweiterte Version mit Benutzerinformationen
 def find_chat_by_room_number_with_users(chat_room_number, current_user):
     """
     Findet einen Chat MIT Benutzerinformationen und prüft Berechtigung
+    Verwendet die neue BasicChatGroupMembership Tabelle
     Rückgabe: chat_dict, chat_type, error_message
     """
     try:
-        # Erst in Group Chats suchen
+        # ========== GROUP CHATS ==========
         group_chat = BasicChatGroupChat.query.filter_by(
             chat_room_number=chat_room_number
         ).first()
 
         if group_chat:
-            # Berechtigung prüfen
-            if (
-                group_chat.group_members == "*"
-                or str(current_user.id) in (group_chat.group_admins or "")
-                or str(current_user.id) in (group_chat.group_members or "")
-            ):
+            # Berechtigung über Membership-Tabelle prüfen
+            is_member = BasicChatGroupMembership.query.filter_by(
+                group_chat_id=group_chat.id, user_id=current_user.id
+            ).first()
+
+            # FALLBACK für Legacy-Daten (falls noch nicht migriert)
+            legacy_has_access = False
+            if group_chat.group_members == "*":
+                legacy_has_access = True
+            elif group_chat.group_members or group_chat.group_admins:
+                legacy_has_access = str(current_user.id) in (
+                    group_chat.group_admins or ""
+                ) or str(current_user.id) in (group_chat.group_members or "")
+
+            # Zugriff gewähren wenn Member ODER Legacy-Zugriff
+            if is_member or legacy_has_access:
                 chat_dict = group_chat.to_dict()
 
                 # Creator-Info hinzufügen
@@ -350,47 +428,48 @@ def find_chat_by_room_number_with_users(chat_room_number, current_user):
                         else f"Gelöschter User (ID: {group_chat.created_by_user_id})"
                     )
 
-                # Member-Liste mit Usernamen (falls nicht "*")
-                if group_chat.group_members and group_chat.group_members != "*":
-                    member_ids = [
-                        int(id.strip())
-                        for id in group_chat.group_members.split(",")
-                        if id.strip().isdigit()
-                    ]
-                    members = (
-                        User.query.filter(User.id.in_(member_ids)).all()
-                        if member_ids
-                        else []
-                    )
+                # Members aus Membership-Tabelle laden
+                memberships = BasicChatGroupMembership.query.filter_by(
+                    group_chat_id=group_chat.id
+                ).all()
+
+                # Alle User IDs der Members sammeln
+                member_ids = [m.user_id for m in memberships]
+                admin_ids = [m.user_id for m in memberships if m.is_admin]
+
+                # Members mit Namen laden
+                if member_ids:
+                    members = User.query.filter(User.id.in_(member_ids)).all()
                     chat_dict["members_with_names"] = [
-                        {"id": user.id, "username": user.username} for user in members
+                        {
+                            "id": user.id,
+                            "username": user.username,
+                            "is_admin": user.id in admin_ids,
+                        }
+                        for user in members
                     ]
                 else:
-                    chat_dict["members_with_names"] = []  # Öffentlicher Chat
+                    chat_dict["members_with_names"] = []
 
-                # Admin-Liste mit Usernamen
-                if group_chat.group_admins:
-                    admin_ids = [
-                        int(id.strip())
-                        for id in group_chat.group_admins.split(",")
-                        if id.strip().isdigit()
-                    ]
-                    admins = (
-                        User.query.filter(User.id.in_(admin_ids)).all()
-                        if admin_ids
-                        else []
-                    )
+                # Admins mit Namen (nur Admins)
+                if admin_ids:
+                    admins = User.query.filter(User.id.in_(admin_ids)).all()
                     chat_dict["admins_with_names"] = [
                         {"id": user.id, "username": user.username} for user in admins
                     ]
                 else:
                     chat_dict["admins_with_names"] = []
 
+                # Ist aktueller User Admin?
+                chat_dict["current_user_is_admin"] = (
+                    is_member.is_admin if is_member else False
+                )
+
                 return chat_dict, "group", ""
             else:
-                return None, None, "Keine Berechtigung"
+                return None, None, "Keine Berechtigung für diesen Gruppenchat"
 
-        # Dann in Normal Chats suchen
+        # ========== NORMAL CHATS ==========
         normal_chat = BasicChatNormalChat.query.filter_by(
             chat_room_number=chat_room_number
         ).first()
@@ -401,6 +480,7 @@ def find_chat_by_room_number_with_users(chat_room_number, current_user):
                 current_user.id == normal_chat.a_user_id
                 or current_user.id == normal_chat.b_user_id
             ):
+
                 chat_dict = normal_chat.to_dict()
 
                 # Beide User-Info hinzufügen
@@ -418,21 +498,78 @@ def find_chat_by_room_number_with_users(chat_room_number, current_user):
                     else f"Gelöschter User (ID: {normal_chat.b_user_id})"
                 )
 
-                # Display-Name für aktuellen User
+                # Display-Name für aktuellen User (Chat-Partner)
                 if current_user.id == normal_chat.a_user_id:
                     chat_dict["display_name"] = chat_dict["user_b_username"]
+                    chat_dict["partner_id"] = normal_chat.b_user_id
                 else:
                     chat_dict["display_name"] = chat_dict["user_a_username"]
+                    chat_dict["partner_id"] = normal_chat.a_user_id
 
                 return chat_dict, "normal", ""
             else:
-                return None, None, "Keine Berechtigung"
+                return None, None, "Keine Berechtigung für diesen Chat"
 
         return None, None, "Chat nicht gefunden"
 
     except Exception as e:
+        from flask import current_app as app
+
         app.logger.error(f"❌ Fehler beim Suchen des Chats mit Users: {e}")
-        return None, None, "Serverfehler"
+        import traceback
+
+        app.logger.error(traceback.format_exc())
+        return None, None, "Serverfehler beim Laden des Chats"
+
+
+# ========== ZUSÄTZLICHE HILFSFUNKTION ==========
+
+
+def check_user_chat_permission(chat_room_number, user_id):
+    """
+    Schnelle Berechtigungsprüfung ohne User-Details zu laden
+    Gibt True/False zurück
+    """
+    try:
+        # Group Chat prüfen
+        group_chat = BasicChatGroupChat.query.filter_by(
+            chat_room_number=chat_room_number
+        ).first()
+
+        if group_chat:
+            # Membership prüfen
+            is_member = BasicChatGroupMembership.query.filter_by(
+                group_chat_id=group_chat.id, user_id=user_id
+            ).first()
+
+            if is_member:
+                return True
+
+            # Legacy Fallback
+            if group_chat.group_members == "*":
+                return True
+            if str(user_id) in (group_chat.group_admins or "") or str(user_id) in (
+                group_chat.group_members or ""
+            ):
+                return True
+
+            return False
+
+        # Normal Chat prüfen
+        normal_chat = BasicChatNormalChat.query.filter_by(
+            chat_room_number=chat_room_number
+        ).first()
+
+        if normal_chat:
+            return user_id == normal_chat.a_user_id or user_id == normal_chat.b_user_id
+
+        return False
+
+    except Exception as e:
+        from flask import current_app as app
+
+        app.logger.error(f"❌ Fehler bei Berechtigungsprüfung: {e}")
+        return False
 
 
 def find_chat_messages_by_room_number(chat_room_number, current_user):
@@ -517,66 +654,68 @@ def safe_new_message_with_user_info(
         return None
 
 
-def get_all_messages_from_chat_room(chat_room_number):
-    """
-    Holt alle Nachrichten aus einem Chat-Raum (OHNE User-Info)
-    """
-    all_messages = (
-        BasicChatChatMessages.query.filter_by(chat_room_number=chat_room_number)
-        .order_by(BasicChatChatMessages.created_at)
-        .all()
-    )
-    return [message.to_dict() for message in all_messages]
-
-
-# ✅ NEU: Erweiterte Version mit Benutzerinformationen
 def get_all_messages_from_chat_room_with_users(chat_room_number):
     """
-    Holt alle Nachrichten aus einem Chat-Raum MIT Benutzerinformationen
+    Lädt alle Nachrichten eines Chats MIT Benutzerinformationen
+    Verwendet keine Relationships mehr, sondern manuelle User-Lookups
     """
     try:
-        # Nachrichten holen
+        # Nachrichten aus DB laden
         messages = (
             BasicChatChatMessages.query.filter_by(chat_room_number=chat_room_number)
-            .order_by(BasicChatChatMessages.created_at)
+            .order_by(BasicChatChatMessages.created_at.asc())
             .all()
         )
 
-        # Mit Benutzerinformationen anreichern
-        enriched_messages = []
+        if not messages:
+            return []
 
-        for message in messages:
-            message_dict = message.to_dict()
+        # Alle User IDs sammeln (unique)
+        user_ids = list(set(msg.user_id for msg in messages))
 
-            # User laden (falls vorhanden)
-            user = User.query.get(message.user_id) if message.user_id else None
+        # Alle User auf einmal laden (Performance!)
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        user_dict = {user.id: user for user in users}
 
-            # User-Informationen hinzufügen
+        # Wenn es ein Group Chat ist, Admin-Status laden
+        admin_status_dict = {}
+        if messages and messages[0].chat_type == "group" and messages[0].group_chat_id:
+            memberships = BasicChatGroupMembership.query.filter_by(
+                group_chat_id=messages[0].group_chat_id
+            ).all()
+            admin_status_dict = {m.user_id: m.is_admin for m in memberships}
+
+        # Nachrichten mit User-Info zusammenbauen
+        messages_with_users = []
+        for msg in messages:
+            message_dict = msg.to_dict()
+
+            # User-Info hinzufügen
+            user = user_dict.get(msg.user_id)
             if user:
-                message_dict.update(
-                    {
-                        "username": user.username,
-                        "user_exists": True,
-                        "user_avatar": getattr(user, "avatar_url", None),
-                        "is_admin": getattr(user, "is_admin", False),
-                    }
-                )
+                message_dict["username"] = user.username
+                message_dict["user_avatar"] = getattr(user, "avatar_url", None)
             else:
-                message_dict.update(
-                    {
-                        "username": f"Gelöschter Benutzer (ID: {message.user_id})",
-                        "user_exists": False,
-                        "user_avatar": None,
-                        "is_admin": False,
-                    }
-                )
+                message_dict["username"] = f"Gelöschter User (ID: {msg.user_id})"
+                message_dict["user_avatar"] = None
 
-            enriched_messages.append(message_dict)
+            # Admin-Status hinzufügen (nur bei Group Chats)
+            if msg.chat_type == "group":
+                message_dict["is_admin"] = admin_status_dict.get(msg.user_id, False)
+            else:
+                message_dict["is_admin"] = False
 
-        return enriched_messages
+            messages_with_users.append(message_dict)
+
+        return messages_with_users
 
     except Exception as e:
+        from flask import current_app as app
+
         app.logger.error(f"❌ Fehler beim Laden der Nachrichten mit Users: {e}")
+        import traceback
+
+        app.logger.error(traceback.format_exc())
         return []
 
 
@@ -785,3 +924,59 @@ def get_all_chat_room_numbers():
             all_numbers.append(normal_chat.chat_room_number)
 
     return all_numbers
+
+
+def add_group_chat_member(group_chat_id, all_user_id):
+    """
+    ✅ VERBESSERT: Fügt Benutzer zu Gruppenchat hinzu
+    """
+    error_message = None
+    success = False
+    added_users = []
+
+    try:
+        # Gruppe existiert?
+        group_chat = BasicChatGroupChat.query.get(group_chat_id)
+        if not group_chat:
+            return False, [], "Gruppe nicht gefunden"
+
+        # Bereits vorhandene Members
+        existing_memberships = BasicChatGroupMembership.query.filter_by(
+            group_chat_id=group_chat_id
+        ).all()
+        already_member_ids = [m.user_id for m in existing_memberships]
+
+        # Nur neue User hinzufügen
+        to_add_users = [uid for uid in all_user_id if uid not in already_member_ids]
+
+        if not to_add_users:
+            return False, [], "Alle Benutzer sind bereits Mitglied"
+
+        # User als Member hinzufügen
+        for user_id in to_add_users:
+            # Prüfe ob User existiert
+            user = User.query.get(user_id)
+            if not user:
+                print(f"⚠️ User {user_id} existiert nicht, überspringe...")
+                continue
+
+            new_member = BasicChatGroupMembership(
+                group_chat_id=group_chat_id,
+                user_id=user_id,
+                is_admin=False,
+                is_moderator=False,
+            )
+            db.session.add(new_member)
+            added_users.append(user_id)
+
+        db.session.commit()
+        success = True
+
+        print(f"✅ {len(added_users)} User zu Gruppe {group_chat_id} hinzugefügt")
+
+    except Exception as e:
+        db.session.rollback()
+        error_message = f"Datenbankfehler: {str(e)}"
+        print(f"❌ Fehler in add_group_chat_member: {e}")
+
+    return success, added_users, error_message

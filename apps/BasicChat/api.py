@@ -230,7 +230,7 @@ def send_message():
         return jsonify({"success": False, "error": "Serverfehler"}), 500
 
 
-@blueprint.route("/create_new_group_chat", methods=["POST"])
+@blueprint.route("/api/create_new_group_chat", methods=["POST"])
 @enabled_required
 def create_new_group_chat():
     try:
@@ -239,8 +239,9 @@ def create_new_group_chat():
         new_group_chat = helper_basic_app.create_new_group_chat(
             group_name, current_user
         )
-        all_users = User.query.all()
+        all_users = User.query.filter(User.id != current_user.id).all()
         users_dict = [user.to_dict() for user in all_users]
+
         return jsonify(
             {
                 "success": True,
@@ -252,6 +253,44 @@ def create_new_group_chat():
         print(f"❌ Fehler in create_new_group_chat: {e}")
         app_logger.error(f"❌ Fehler in create_new_group_chat: {e}")
         return jsonify({"success": False, "error": "Serverfehler"}), 500
+
+
+@blueprint.route("/api/add_member_to_group_chat", methods=["POST"])
+@enabled_required
+def add_member_to_group_chat():
+    success = False
+    added_users = []
+    error_message = []
+    try:
+        data = request.get_json()
+        group_chat_id = data.get("group_chat_id")
+        all_user_id = data.get("all_user_id")
+
+        success, added_users, error_message = helper_basic_app.add_group_chat_member(
+            group_chat_id, all_user_id
+        )
+
+        return jsonify(
+            {
+                "success": success,
+                "added_users": added_users,
+                "error_message": error_message,
+                "added_count": len(added_users),
+            }
+        )
+    except Exception as e:
+        print(f"❌ Fehler in add_member_to_group_chat: {e}")
+        app_logger.error(f"❌ Fehler in add_member_to_group_chat: {e}")
+        return (
+            jsonify(
+                {
+                    "success": success,
+                    "added_users": added_users,
+                    "error_message": error_message,
+                }
+            ),
+            500,
+        )
 
 
 # ✅ NEU: Route für User-Info-Lookup

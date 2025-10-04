@@ -1,6 +1,7 @@
 from datetime import datetime
 from pytz import timezone
 from app import db
+from sqlalchemy import event
 
 
 def get_current_time():
@@ -15,14 +16,12 @@ class BasicChatGroupChat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     chat_room_number = db.Column(db.String(64), index=True, unique=True)
     group_name = db.Column(db.String(64), index=True)
-    group_admins = db.Column(db.Text)  # User ID's als Komma-getrennt
-    group_members = db.Column(db.Text)  # User ID's als Komma-getrennt
+    group_admins = db.Column(db.Text)  # LEGACY - wird bereinigt
+    group_members = db.Column(db.Text)  # LEGACY - wird bereinigt
     group_avatar_url = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, index=True, default=get_current_time)
     last_message_date = db.Column(db.DateTime, index=True, default=get_current_time)
     last_message = db.Column(db.Text, default=first_default_message)
-
-    # ✅ GEÄNDERT: Kein Foreign Key, nur Integer ID
     created_by_user_id = db.Column(db.Integer, nullable=True, index=True)
 
     def to_dict(self):
@@ -50,8 +49,6 @@ class BasicChatNormalChat(db.Model):
     last_message_date = db.Column(db.DateTime, index=True, default=get_current_time)
     last_message = db.Column(db.Text)
     created_at = db.Column(db.DateTime, index=True, default=get_current_time)
-
-    # ✅ GEÄNDERT: Keine Foreign Keys, nur Integer IDs
     a_user_id = db.Column(db.Integer, nullable=False, index=True)
     b_user_id = db.Column(db.Integer, nullable=False, index=True)
 
@@ -73,18 +70,11 @@ class BasicChatGroupMembership(db.Model):
     __tablename__ = "basicchat_group_membership"
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # ✅ GEÄNDERT: Kein Foreign Key für group_chat_id
     group_chat_id = db.Column(db.Integer, nullable=False, index=True)
-
-    # ✅ GEÄNDERT: Kein Foreign Key für user_id
     user_id = db.Column(db.Integer, nullable=False, index=True)
-
-    # Rollen
     is_admin = db.Column(db.Boolean, default=False)
     is_moderator = db.Column(db.Boolean, default=False)
 
-    # ✅ GEÄNDERT: Unique constraint angepasst
     __table_args__ = (
         db.UniqueConstraint("group_chat_id", "user_id", name="unique_group_membership"),
     )
@@ -97,20 +87,12 @@ class BasicChatChatMessages(db.Model):
     message = db.Column(db.Text)
     created_at = db.Column(db.DateTime, index=True, default=get_current_time)
     chat_room_number = db.Column(db.String(64), index=True, nullable=True)
-    chat_type = db.Column(
-        db.String(32), index=True, nullable=False
-    )  # 'group' oder 'normal'
-
-    # ✅ GEÄNDERT: Keine Foreign Keys, nur Integer IDs
+    chat_type = db.Column(db.String(32), index=True, nullable=False)
     user_id = db.Column(db.Integer, nullable=False, index=True)
     group_chat_id = db.Column(db.Integer, nullable=True, index=True)
     normal_chat_id = db.Column(db.Integer, nullable=True, index=True)
 
-    # ✅ ENTFERNT: Keine Relationship mehr
-    # user = db.relationship("User", backref="chat_messages")
-
     def to_dict(self):
-        # ✅ GEÄNDERT: Username wird separat geholt (falls benötigt)
         return {
             "id": self.id,
             "message": self.message,
@@ -118,17 +100,12 @@ class BasicChatChatMessages(db.Model):
             "chat_room_number": self.chat_room_number,
             "chat_type": self.chat_type,
             "user_id": self.user_id,
-            # Username muss jetzt separat über eine Hilfsfunktion geholt werden
         }
 
     def get_username(self):
-        """
-        Hilfsfunktion um den Username zu holen, falls User noch existiert
-        """
+        """Hilfsfunktion um den Username zu holen"""
         try:
-            from app.routes.admin.models import (
-                User,
-            )  # Import hier, um Circular Imports zu vermeiden
+            from app.routes.admin.models import User
 
             user = User.query.get(self.user_id)
             return (
@@ -138,13 +115,101 @@ class BasicChatChatMessages(db.Model):
             return f"Unbekannter Benutzer (ID: {self.user_id})"
 
 
-# ✅ ZUSÄTZLICHE HILFSFUNKTIONEN für User-Lookup ohne Foreign Keys
+# ==================== EVENT LISTENER FÜR MIGRATION ====================
+
+
+def migrate_members_to_membership_table(mapper, connection, target):
+    """
+    Event Listener: Migriert Member/Admin-Daten aus Text-Feldern
+    in die BasicChatGroupMembership Tabelle und bereinigt die alten Felder
+    """
+    try:
+        # Prüfen ob überhaupt Legacy-Daten vorhanden sind
+        if not target.group_members and not target.group_admins:
+            return
+
+        # User IDs aus den komma-getrennten Strings extrahieren
+        admin_ids = set()
+        member_ids = set()
+
+        if target.group_admins:
+            admin_ids = {
+                int(uid.strip())
+                for uid in target.group_admins.split(",")
+                if uid.strip().isdigit()
+            }
+
+        if target.group_members:
+            member_ids = {
+                int(uid.strip())
+                for uid in target.group_members.split(",")
+                if uid.strip().isdigit()
+            }
+
+        # Alle User IDs kombinieren (Admins sind auch Members)
+        all_user_ids = admin_ids.union(member_ids)
+
+        # Membership-Einträge erstellen
+        for user_id in all_user_ids:
+            # Prüfen ob bereits vorhanden
+            existing = connection.execute(
+                db.text(
+                    "SELECT id FROM basicchat_group_membership "
+                    "WHERE group_chat_id = :group_id AND user_id = :user_id"
+                ),
+                {"group_id": target.id, "user_id": user_id},
+            ).fetchone()
+
+            if not existing:
+                # Neuen Eintrag erstellen
+                is_admin = user_id in admin_ids
+                connection.execute(
+                    db.text(
+                        "INSERT INTO basicchat_group_membership "
+                        "(group_chat_id, user_id, is_admin, is_moderator) "
+                        "VALUES (:group_id, :user_id, :is_admin, :is_moderator)"
+                    ),
+                    {
+                        "group_id": target.id,
+                        "user_id": user_id,
+                        "is_admin": is_admin,
+                        "is_moderator": False,
+                    },
+                )
+
+        # Legacy-Felder leeren
+        connection.execute(
+            db.text(
+                "UPDATE basicchat_group_chat "
+                "SET group_admins = NULL, group_members = NULL "
+                "WHERE id = :group_id"
+            ),
+            {"group_id": target.id},
+        )
+
+        print(
+            f"✅ Migration abgeschlossen für Gruppenchat ID {target.id}: "
+            f"{len(all_user_ids)} Members migriert ({len(admin_ids)} Admins)"
+        )
+
+    except Exception as e:
+        print(f"❌ Fehler bei Member-Migration für Gruppenchat ID {target.id}: {e}")
+
+
+# Event Listener registrieren
+event.listens_for(BasicChatGroupChat, "after_insert")(
+    migrate_members_to_membership_table
+)
+event.listens_for(BasicChatGroupChat, "after_update")(
+    migrate_members_to_membership_table
+)
+
+
+# ==================== HILFSFUNKTIONEN ====================
 
 
 def get_user_by_id(user_id):
-    """
-    Hilfsfunktion um einen User zu holen, falls er noch existiert
-    """
+    """Hilfsfunktion um einen User zu holen"""
     try:
         from app.routes.admin.models import User
 
@@ -154,32 +219,27 @@ def get_user_by_id(user_id):
 
 
 def get_username_by_id(user_id):
-    """
-    Hilfsfunktion um einen Username zu holen, falls User noch existiert
-    """
+    """Hilfsfunktion um einen Username zu holen"""
     user = get_user_by_id(user_id)
     return user.username if user else f"Gelöschter Benutzer (ID: {user_id})"
 
 
 def cleanup_deleted_user_data(user_id):
-    """
-    Hilfsfunktion um Chat-Daten eines gelöschten Users zu bereinigen
-    Kann aufgerufen werden, bevor ein User gelöscht wird
-    """
+    """Hilfsfunktion um Chat-Daten eines gelöschten Users zu bereinigen"""
     try:
-        # Option 1: Nachrichten löschen
+        # Nachrichten löschen
         BasicChatChatMessages.query.filter_by(user_id=user_id).delete()
 
-        # Option 2: User aus Gruppenmitgliedschaften entfernen
+        # User aus Gruppenmitgliedschaften entfernen
         BasicChatGroupMembership.query.filter_by(user_id=user_id).delete()
 
-        # Option 3: Normale Chats löschen, wo User beteiligt ist
+        # Normale Chats löschen
         BasicChatNormalChat.query.filter(
             (BasicChatNormalChat.a_user_id == user_id)
             | (BasicChatNormalChat.b_user_id == user_id)
         ).delete()
 
-        # Option 4: created_by_user_id auf NULL setzen für Gruppenchats
+        # created_by_user_id auf NULL setzen
         group_chats = BasicChatGroupChat.query.filter_by(
             created_by_user_id=user_id
         ).all()
@@ -191,4 +251,32 @@ def cleanup_deleted_user_data(user_id):
     except Exception as e:
         db.session.rollback()
         print(f"Fehler beim Bereinigen der Chat-Daten für User {user_id}: {e}")
+        return False
+
+
+def migrate_all_legacy_groups():
+    """
+    Manuelle Migration für alle bestehenden Legacy-Gruppen
+    Kann einmalig aufgerufen werden, um alle alten Daten zu migrieren
+    """
+    try:
+        legacy_groups = BasicChatGroupChat.query.filter(
+            (BasicChatGroupChat.group_admins.isnot(None))
+            | (BasicChatGroupChat.group_members.isnot(None))
+        ).all()
+
+        migrated_count = 0
+        for group in legacy_groups:
+            # Trigger die Migration durch ein Update
+            db.session.add(group)
+            db.session.flush()
+            migrated_count += 1
+
+        db.session.commit()
+        print(f"✅ {migrated_count} Legacy-Gruppen erfolgreich migriert")
+        return True
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Fehler bei der Legacy-Migration: {e}")
         return False

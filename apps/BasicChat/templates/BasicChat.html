@@ -75,35 +75,72 @@ content %}
           </h5>
         </div>
         <div class="modal-body">
-          <p>Geben Sie einen Namen für die neue Gruppe ein:</p>
+          <!-- Schritt 1: Gruppenname eingeben -->
+          <div id="step-1-group-name">
+            <p>Geben Sie einen Namen für die neue Gruppe ein:</p>
+            <div class="form-group">
+              <label for="group-name-input">Gruppenname</label>
+              <input
+                class="form-control"
+                type="text"
+                id="group-name-input"
+                placeholder="z.B. Familie, Arbeit, Freunde..."
+                maxlength="50"
+              />
+            </div>
+          </div>
 
-          <div class="form-group">
-            <label for="group-name-input">Gruppenname</label>
-            <input
-              class="form-control"
-              type="text"
-              id="group-name-input"
-              placeholder="z.B. Familie, Arbeit, Freunde..."
-              maxlength="50"
-            />
+          <!-- Schritt 2: Benutzer auswählen (versteckt am Anfang) -->
+          <div id="step-2-select-users" style="display: none">
+            <p class="text-success" id="step-2-success-message">
+              ✅ Gruppe wurde erstellt!
+            </p>
+            <p>Wählen Sie Benutzer für die Gruppe aus:</p>
+            <div id="user-list" style="max-height: 300px; overflow-y: auto">
+              <!-- Wird mit JavaScript gefüllt -->
+            </div>
           </div>
         </div>
+
         <div class="modal-footer">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="closeAndOpenNewModal('new-chat-modal-group', 'new-chat-modal-main')"
-          >
-            Zurück
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary"
-            onclick="createNewGroupChat('{{ url_for('BasicChat.create_new_group_chat') }}')"
-            id="confirmCreateGroup"
-          >
-            Gruppe erstellen
-          </button>
+          <!-- Schritt 1 Buttons -->
+          <div id="step-1-buttons">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="closeAndOpenNewModal('new-chat-modal-group', 'new-chat-modal-main')"
+            >
+              Zurück
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="createNewGroupChat('{{ url_for('BasicChat.create_new_group_chat') }}')"
+              id="confirmCreateGroup"
+            >
+              Gruppe erstellen
+            </button>
+          </div>
+
+          <!-- Schritt 2 Buttons (versteckt am Anfang) -->
+          <div id="step-2-buttons" style="display: none">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-dismiss="modal"
+              onclick="skipAddMembersStep()"
+            >
+              Überspringen
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="addSelectedMembersToGroup('{{ url_for('BasicChat.add_member_to_group_chat') }}')"
+              id="confirmAddMembers"
+            >
+              Benutzer hinzufügen
+            </button>
+          </div>
         </div>
       </div>
     </div>

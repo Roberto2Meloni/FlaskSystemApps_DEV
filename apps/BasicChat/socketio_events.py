@@ -5,13 +5,19 @@ from flask_login import current_user
 from flask import request
 from app.helper_functions.helper_db_file import check_if_user_has_admin_rights
 from app.routes.admin.models import User  # Oder dein User Model Pfad
+from . import app_logger
+
+
 from app import app
+
+
 from .helper_app_functions import helper_basic_app
+
 
 # Aktueller Raum des Users (pro Session)
 user_current_rooms = {}
 
-print("✅ BasicChat Socket.IO Events werden registriert...")
+app_logger.info("✅ BasicChat Socket.IO Events werden registriert...")
 
 
 @socketio.on("BasicChat_join_chat_room")
@@ -110,7 +116,7 @@ def handle_leave_chat_room(data):
     leave_room(current_room)
     del user_current_rooms[request.sid]
 
-    print(f"👤 {username} hat Raum {current_room} verlassen")
+    app.logger.debug(f"👤 {username} hat Raum {current_room} verlassen")
 
     # ✅ ERWEITERT: Mehr User-Info senden
     emit(
@@ -172,7 +178,7 @@ def handle_do_the_harlemshake(data):
     this_user = User.query.filter_by(username=name).first()
     is_admin = check_if_user_has_admin_rights(app, this_user.id) if this_user else False
 
-    print(f"🕺 Harlemshake Befehl von {name}. Admin Status: {is_admin}")
+    app.logger.debug(f"🕺 Harlemshake Befehl von {name}. Admin Status: {is_admin}")
 
     emit(
         "BasicChat_do_the_harlemshake_reply",
@@ -206,7 +212,7 @@ def handle_send_message(data):
             f"🔍 DEBUG: Berechtigung geprüft - chat: {chat is not None}, error: {error_message}"
         )
     except Exception as e:
-        print(f"❌ FEHLER bei Berechtigung: {e}")
+        app.logger.error(f"❌ FEHLER bei Berechtigung: {e}")
         emit(
             "BasicChat_client_message_recieved",
             {"success": False, "error": "Serverfehler bei Berechtigung"},
@@ -246,7 +252,7 @@ def handle_send_message(data):
                 )
                 print("✅ DEBUG: emit() mit User-Info erfolgreich ausgeführt")
             else:
-                print("❌ DEBUG: Nachricht konnte nicht gespeichert werden")
+                app_logger.error("❌ DEBUG: Nachricht konnte nicht gespeichert werden")
                 emit(
                     "BasicChat_client_message_recieved",
                     {
@@ -256,7 +262,7 @@ def handle_send_message(data):
                 )
 
         except Exception as e:
-            print(f"❌ FEHLER beim Speichern/Senden: {e}")
+            app_logger.error(f"❌ FEHLER beim Speichern/Senden: {e}")
             emit(
                 "BasicChat_client_message_recieved", {"success": False, "error": str(e)}
             )
@@ -280,7 +286,7 @@ def handle_get_user_info(data):
         user_info = helper_basic_app.get_user_info(user_id)
         emit("BasicChat_user_info_response", {"success": True, "user": user_info})
     except Exception as e:
-        print(f"❌ Fehler bei User-Info Lookup: {e}")
+        app_logger(f"❌ Fehler bei User-Info Lookup: {e}")
         emit(
             "BasicChat_user_info_response", {"success": False, "error": "Serverfehler"}
         )
