@@ -1,6 +1,6 @@
 from flask import render_template, current_app as app, request, jsonify
 from flask_login import current_user
-from . import blueprint
+from . import blueprint, app_logger
 from app.config import Config
 from app.decorators import admin_required, enabled_required
 from app import db
@@ -22,7 +22,7 @@ from .helper_app_functions import helper_basic_app
 # from app.helper_functions.helper_db_file import check_if_user_has_admin_rights
 
 config = Config()
-
+app_logger.info("Starte Routing für APP-EINKAUFSLISTE")
 print("BasicChat Version 0.0.0")
 
 
@@ -46,3 +46,6 @@ def BasicChat_index():
         all_my_chats=all_my_chats,
         get_current_time=get_current_time,
     )
+
+
+app_logger.info("Ende Routing für APP-BASICCHAT")

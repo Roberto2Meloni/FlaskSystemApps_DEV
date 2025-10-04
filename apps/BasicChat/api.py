@@ -1,11 +1,12 @@
 from flask import render_template, current_app as app, request, jsonify
 from flask_login import current_user
-from . import blueprint
+from . import blueprint, app_logger
 from app.config import Config
 from app.decorators import admin_required, enabled_required
 from app import db
 from datetime import datetime
 from .helper_app_functions import helper_basic_app
+from app.routes.admin.models import User
 
 
 @blueprint.route("/get_chat_contanten/<chat_room_number>", methods=["GET"])
@@ -226,6 +227,30 @@ def send_message():
 
     except Exception as e:
         print(f"❌ Fehler in send_message: {e}")
+        return jsonify({"success": False, "error": "Serverfehler"}), 500
+
+
+@blueprint.route("/create_new_group_chat", methods=["POST"])
+@enabled_required
+def create_new_group_chat():
+    try:
+        data = request.get_json()
+        group_name = data.get("group_name")
+        new_group_chat = helper_basic_app.create_new_group_chat(
+            group_name, current_user
+        )
+        all_users = User.query.all()
+        users_dict = [user.to_dict() for user in all_users]
+        return jsonify(
+            {
+                "success": True,
+                "group_chat": new_group_chat.to_dict(),
+                "all_users": users_dict,
+            }
+        )
+    except Exception as e:
+        print(f"❌ Fehler in create_new_group_chat: {e}")
+        app_logger.error(f"❌ Fehler in create_new_group_chat: {e}")
         return jsonify({"success": False, "error": "Serverfehler"}), 500
 
 

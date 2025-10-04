@@ -87,10 +87,6 @@ content %}
               maxlength="50"
             />
           </div>
-
-          <small class="text-muted">
-            Der Gruppenname kann später noch geändert werden.
-          </small>
         </div>
         <div class="modal-footer">
           <button
@@ -103,7 +99,7 @@ content %}
           <button
             type="button"
             class="btn btn-primary"
-            onclick="createGroupTest()"
+            onclick="createNewGroupChat('{{ url_for('BasicChat.create_new_group_chat') }}')"
             id="confirmCreateGroup"
           >
             Gruppe erstellen

@@ -1,4 +1,5 @@
 from flask import Blueprint
+from app.logger_manager import AppLogger
 
 blueprint = Blueprint(
     "BasicChat",
@@ -8,3 +9,6 @@ blueprint = Blueprint(
     static_folder="static",
     static_url_path="/BasicChat_static",
 )
+
+app_logger = AppLogger("APP-BASICCHAT")
+app_logger.info("Starte App-BasicChat Route Initialization")

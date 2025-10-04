@@ -29,13 +29,32 @@ def get_app_config():
         return {}
 
 
-def creat_group_caht_number(existing_group_chat_numbers):
+def creat_group_chat_number(existing_group_chat_numbers):
     while True:
         new_number = "".join(
             secrets.choice(string.ascii_letters + string.digits) for _ in range(16)
         )
         if new_number not in existing_group_chat_numbers:
             return new_number
+
+
+def create_new_group_chat(group_name, current_user):
+    try:
+
+        all_numbers = get_all_chat_room_numbers()
+        new_chat_number = creat_group_chat_number(all_numbers)
+        new_group_chat = BasicChatGroupChat(
+            chat_room_number=new_chat_number,
+            group_name=group_name,
+            group_admins=current_user.id,
+            created_by_user_id=current_user.id,
+        )
+        db.session.add(new_group_chat)
+        db.session.commit()
+        return new_group_chat
+    except Exception as e:
+        db.session.rollback()
+        print(f"Fehler beim Erstellen eines neuen Gruppenchats: {e}")
 
 
 def create_global_group_chat():  # ← KEIN app Parameter mehr!
@@ -54,23 +73,10 @@ def create_global_group_chat():  # ← KEIN app Parameter mehr!
                 "➕ Globaler Chat existiert nicht! Erstelle neuen Chat..."
             )
 
-            # Alle existierenden Nummern sammeln
-            all_numbers = []
-
-            with db.session.no_autoflush:
-                all_group_chats = BasicChatGroupChat.query.all()
-                all_normal_chats = BasicChatNormalChat.query.all()
-
-            for group_chat in all_group_chats:
-                if group_chat.chat_room_number:
-                    all_numbers.append(group_chat.chat_room_number)
-
-            for normal_chat in all_normal_chats:
-                if normal_chat.chat_room_number:
-                    all_numbers.append(normal_chat.chat_room_number)
+            all_numbers = get_all_chat_room_numbers()
 
             # Neue eindeutige Nummer generieren
-            new_number = creat_group_caht_number(all_numbers)
+            new_number = creat_group_chat_number(all_numbers)
             app.logger.debug(f"🔢 Neue globale Chat-Nummer: {new_number}")
 
             # Globalen Chat erstellen
@@ -760,3 +766,22 @@ def get_all_group_chats_for_admin():
     except Exception as e:
         app.logger.error(f"❌ Fehler beim Laden der Gruppenchats für Admin: {e}")
         return []
+
+
+def get_all_chat_room_numbers():
+    # Alle existierenden Nummern sammeln
+    all_numbers = []
+
+    with db.session.no_autoflush:
+        all_group_chats = BasicChatGroupChat.query.all()
+        all_normal_chats = BasicChatNormalChat.query.all()
+
+    for group_chat in all_group_chats:
+        if group_chat.chat_room_number:
+            all_numbers.append(group_chat.chat_room_number)
+
+    for normal_chat in all_normal_chats:
+        if normal_chat.chat_room_number:
+            all_numbers.append(normal_chat.chat_room_number)
+
+    return all_numbers

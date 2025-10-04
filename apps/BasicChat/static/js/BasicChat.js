@@ -695,19 +695,34 @@ function openNewChatModal() {
   openModal("new-chat-modal-main");
 }
 
-function createGroupTest() {
+function createNewGroupChat(url_new_group_chat, url_group_members) {
   const groupName = document.getElementById("group-name-input").value.trim();
+
   if (!groupName) {
-    alert("Bitte geben Sie einen Gruppennamen ein!");
+    alert("Bitte Namen eingeben!");
     return;
   }
 
-  console.log(`Test: Neue Gruppe erstellt mit Namen: "${groupName}"`);
-  alert(`Test: Gruppe "${groupName}" wurde erstellt!`);
+  fetch(url_new_group_chat, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group_name: groupName }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.success) {
+        console.log("Gruppe erstellt!", data.all_users);
+        document.getElementById("group-name-input").value = "";
+      }
+    })
+    .catch((error) => alert("Fehler!"));
 
-  closeAllModals();
-  document.getElementById("group-name-input").value = "";
+  // closeAllModals();
 }
+
+function createUserListInModal(all_user_json) {}
+
+function addMemberToGroup(groupId, all_user_id) {}
 
 console.log("📚 BasicChat mit erweiterten Benutzerinformationen geladen");
 let adminGroupsData = [];
