@@ -1,12 +1,14 @@
 from flask import render_template, current_app as app, request, jsonify
 from flask_login import current_user
 from . import blueprint, app_logger
+from .models import BasicChatGroupChat
 from app.config import Config
 from app.decorators import admin_required, enabled_required
 from app import db
 from datetime import datetime
 from .helper_app_functions import helper_basic_app
 from app.routes.admin.models import User
+from app.socketio_manager import get_socketio_manager
 
 
 @blueprint.route("/get_chat_contanten/<chat_room_number>", methods=["GET"])
@@ -230,6 +232,9 @@ def send_message():
         return jsonify({"success": False, "error": "Serverfehler"}), 500
 
 
+# apps/BasicChat/routes.py
+
+
 @blueprint.route("/api/create_new_group_chat", methods=["POST"])
 @enabled_required
 def create_new_group_chat():
@@ -261,14 +266,52 @@ def add_member_to_group_chat():
     success = False
     added_users = []
     error_message = []
+
     try:
         data = request.get_json()
         group_chat_id = data.get("group_chat_id")
         all_user_id = data.get("all_user_id")
 
+        # ✅ NEU: Sicherheitscheck - Konvertiere zu Integers
+        try:
+            group_chat_id = int(group_chat_id)
+            all_user_id = [int(uid) for uid in all_user_id]
+        except (ValueError, TypeError) as e:
+            return jsonify({"success": False, "error": f"Ungültige IDs: {e}"}), 400
+
         success, added_users, error_message = helper_basic_app.add_group_chat_member(
             group_chat_id, all_user_id
         )
+
+        # Benachrichtige die Users
+        if success and added_users:
+            manager = get_socketio_manager()
+            new_group = BasicChatGroupChat.query.get(group_chat_id)
+
+            # Debug
+            for user_id in added_users:
+                is_online = manager.is_user_online(user_id)
+                app_logger.info(
+                    f"🔍 User {user_id} (type: {type(user_id)}) online? {is_online}"
+                )
+
+            app_logger.info(
+                f"📊 Aktuell online: {list(manager.user_personal_rooms.keys())}"
+            )
+            app_logger.info(
+                f"📊 Key types: {[type(k) for k in manager.user_personal_rooms.keys()]}"
+            )
+
+            notified = manager.notify_users(
+                user_ids=added_users,
+                event_name="BasicChat_new_group_created",
+                data=new_group.to_dict(),
+            )
+
+            app_logger.info(
+                f"📨 Gruppe '{new_group.group_name}': "
+                f"{notified}/{len(added_users)} User benachrichtigt"
+            )
 
         return jsonify(
             {
@@ -278,15 +321,16 @@ def add_member_to_group_chat():
                 "added_count": len(added_users),
             }
         )
+
     except Exception as e:
         print(f"❌ Fehler in add_member_to_group_chat: {e}")
         app_logger.error(f"❌ Fehler in add_member_to_group_chat: {e}")
         return (
             jsonify(
                 {
-                    "success": success,
+                    "success": False,
                     "added_users": added_users,
-                    "error_message": error_message,
+                    "error_message": str(e),
                 }
             ),
             500,

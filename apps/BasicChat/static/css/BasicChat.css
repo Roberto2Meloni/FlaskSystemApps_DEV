@@ -438,3 +438,16 @@ body {
 .admin-group-item.selected .badge {
     background-color: #17a2b8 !important;
 }
+
+
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

@@ -150,6 +150,22 @@ function setupSocketEvents() {
     }
   });
 
+  socket.on("BasicChat_new_group_created", (data) => {
+    console.log("Zu neuer Gruppe hinzugefügt:", data);
+
+    // ✅ KORRIGIERT: Füge zur Chat-Liste hinzu
+    addNewGroupToChatList(data);
+
+    // Optional: Browser-Notification
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("BasicChat", {
+        body: `Du wurdest zur Gruppe "${data.group_name}" hinzugefügt`,
+      });
+    }
+  });
+
+  // ✅ NEU: Funktion für Chat-Liste (wie Template-Format)
+
   console.log("🎮 Socket.IO Events mit Benutzerinformationen registriert");
 }
 
@@ -1196,4 +1212,74 @@ window.ChatDebug.admin = {
   groupsData: () => adminGroupsData,
 };
 
-console.log("🔧 Admin-Modal Funktionen geladen");
+function addNewGroupToChatList(groupData) {
+  const chatList = document.querySelector(".main-chat-and-groups-list");
+
+  if (!chatList) {
+    console.error("❌ Chat-Liste nicht gefunden!");
+    return;
+  }
+
+  // Prüfe ob bereits vorhanden
+  const existingItem = chatList.querySelector(
+    `[data-room-number="${groupData.chat_room_number}"]`
+  );
+  if (existingItem) {
+    console.log("ℹ️ Gruppe existiert bereits in Liste");
+    return;
+  }
+
+  // Erstelle neues Chat-List-Item (wie Template)
+  const chatItem = document.createElement("div");
+  chatItem.className = "chat-list-item";
+  chatItem.dataset.roomNumber = groupData.chat_room_number;
+  chatItem.dataset.chatType = "group";
+
+  // URLs für onclick
+  const chatUrl = `/BasicChat/api/load_chat/${groupData.chat_room_number}`;
+  const messagesUrl = `/BasicChat/api/load_chat_messages/${groupData.chat_room_number}`;
+
+  chatItem.dataset.chatUrl = chatUrl;
+  chatItem.dataset.messagesUrl = messagesUrl;
+
+  // Zeitstempel für "Neu"
+  const now = new Date();
+  const timeDisplay = now.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  // HTML wie im Template
+  chatItem.innerHTML = `
+        <div class="main-chat-and-groups-list-wraper">
+            <div class="main-chat-and-groups-list-avatar">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            
+            <div class="main-chat-and-groups-list-name">
+                ${escapeHtml(groupData.group_name)}
+            </div>
+            
+            <div class="main-chat-and-groups-list-last-message">
+                <small>${timeDisplay}</small>
+            </div>
+            
+            <div class="chat-type-badge" style="display: none">
+                <span class="badge badge-primary">Gruppe</span>
+            </div>
+        </div>
+    `;
+
+  // Click-Handler
+  chatItem.onclick = function () {
+    loadChat(chatUrl, messagesUrl);
+  };
+
+  // Zur Liste hinzufügen (oben, damit sichtbar)
+  chatList.insertBefore(chatItem, chatList.firstChild);
+
+  // Animation (optional)
+  chatItem.style.animation = "slideInFromLeft 0.3s ease-out";
+
+  console.log(`✅ Gruppe "${groupData.group_name}" zur Chat-Liste hinzugefügt`);
+}

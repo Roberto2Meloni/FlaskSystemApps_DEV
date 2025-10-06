@@ -28,7 +28,7 @@ def handle_join_chat_room(data):
     """
     room_number = data.get("room_number")
     if not room_number:
-        print("❌ Keine room_number angegeben")
+        app_logger.error("❌ Keine room_number angegeben")
         return
 
     # Username ermitteln
@@ -57,7 +57,7 @@ def handle_join_chat_room(data):
     join_room(room_number)
     user_current_rooms[request.sid] = room_number
 
-    print(f"👤 {username} ist Raum {room_number} beigetreten")
+    app_logger.debug(f"👤 {username} ist Raum {room_number} beigetreten")
 
     # DEBUG: Anzahl und Namen der User im Raum anzeigen
     users_in_room = []
@@ -65,8 +65,10 @@ def handle_join_chat_room(data):
         if room == room_number:
             users_in_room.append(f"SID_{sid[:6]}")
 
-    print(f"🏠 DEBUG: Raum {room_number} hat jetzt {len(users_in_room)} User")
-    print(f"🏠 DEBUG: User im Raum: {', '.join(users_in_room)}")
+    app_logger.debug(
+        f"🏠 DEBUG: Raum {room_number} hat jetzt {len(users_in_room)} User"
+    )
+    app_logger.debug(f"🏠 DEBUG: User im Raum: {', '.join(users_in_room)}")
 
     # ✅ ERWEITERT: Mehr User-Info senden
     emit(
@@ -196,10 +198,10 @@ def handle_send_message(data):
     this_room_number = data.get("room_number")
     current_time = helper_basic_app.get_current_time()
 
-    print(
+    app_logger.debug(
         f"Neue Nachricht | Raum: {this_room_number} | User: {current_user.username} | Nachricht: {this_message}"
     )
-    print("🔍 DEBUG: Prüfe Berechtigung...")
+    app_logger.debug("🔍 DEBUG: Prüfe Berechtigung...")
 
     try:
         # ✅ GEÄNDERT: Verwende neue Funktion mit User-Info
@@ -208,7 +210,7 @@ def handle_send_message(data):
                 this_room_number, current_user
             )
         )
-        print(
+        app_logger.debug(
             f"🔍 DEBUG: Berechtigung geprüft - chat: {chat is not None}, error: {error_message}"
         )
     except Exception as e:
@@ -220,13 +222,13 @@ def handle_send_message(data):
         return
 
     if chat is None:
-        print("🔍 DEBUG: Sende Fehler-Response...")
+        app_logger.debug("🔍 DEBUG: Sende Fehler-Response...")
         emit(
             "BasicChat_client_message_recieved",
             {"success": False, "error": error_message},
         )
     else:
-        print("🔍 DEBUG: Speichere Nachricht...")
+        app_logger.debug("🔍 DEBUG: Speichere Nachricht...")
         try:
             # ✅ GEÄNDERT: Verwende neue Funktion mit User-Info
             json_new_message = helper_basic_app.safe_new_message_with_user_info(
@@ -234,7 +236,7 @@ def handle_send_message(data):
             )
 
             if json_new_message:
-                print(
+                app_logger.debug(
                     f"🔍 DEBUG: Nachricht mit User-Info gespeichert, sende an Room {this_room_number}..."
                 )
 
@@ -250,7 +252,9 @@ def handle_send_message(data):
                     },
                     room=this_room_number,
                 )
-                print("✅ DEBUG: emit() mit User-Info erfolgreich ausgeführt")
+                app_logger.debug(
+                    "✅ DEBUG: emit() mit User-Info erfolgreich ausgeführt"
+                )
             else:
                 app_logger.error("❌ DEBUG: Nachricht konnte nicht gespeichert werden")
                 emit(
@@ -299,7 +303,7 @@ def basicchat_disconnect_cleanup(request_sid, user_data):
     """
     BasicChat-spezifisches Disconnect-Cleanup
     """
-    print(f"🧹 BasicChat disconnect cleanup für SID: {request_sid}")
+    app_logger.debug(f"🧹 BasicChat disconnect cleanup für SID: {request_sid}")
     current_room = user_current_rooms.get(request_sid)
 
     if current_room:
@@ -326,30 +330,30 @@ def basicchat_disconnect_cleanup(request_sid, user_data):
         )
 
         del user_current_rooms[request_sid]
-        print(f"👤 {username} disconnected und verließ Chat-Raum {current_room}")
+        app_logger.debug(
+            f"👤 {username} disconnected und verließ Chat-Raum {current_room}"
+        )
     else:
-        print(f"👤 User {request_sid} disconnected (war in keinem Raum)")
+        app_logger.debug(f"👤 User {request_sid} disconnected (war in keinem Raum)")
 
 
 def register_basicchat_hooks():
     """
     Registriert BasicChat Hooks beim SocketIO Manager
     """
-    print("🔗 Registriere BasicChat Disconnect-Hooks...")
+    app_logger.debug("🔗 Registriere BasicChat Disconnect-Hooks...")
     try:
         from app.socketio_manager import get_socketio_manager
 
         manager = get_socketio_manager()
         if manager:
             manager.register_disconnect_hook("BasicChat", basicchat_disconnect_cleanup)
-            print("✅ BasicChat disconnect hook erfolgreich registriert")
+            app_logger.info("✅ BasicChat disconnect hook erfolgreich registriert")
         else:
-            print("❌ SocketIO Manager nicht verfügbar für BasicChat")
+            app_logger.error("❌ SocketIO Manager nicht verfügbar für BasicChat")
     except Exception as e:
-        print(f"❌ Fehler beim Registrieren der BasicChat Hooks: {e}")
+        app_logger.error(f"❌ Fehler beim Registrieren der BasicChat Hooks: {e}")
 
 
 # Hook-Registrierung beim Import
 register_basicchat_hooks()
-
-print("✅ BasicChat Socket.IO Events mit Benutzerinformationen registriert")

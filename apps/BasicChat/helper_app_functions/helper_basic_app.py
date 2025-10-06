@@ -15,6 +15,7 @@ from pytz import timezone
 
 # ✅ NEU: User Model Import für Benutzerinformationen
 from app.routes.admin.models import User
+from .. import app_logger
 
 
 # Variabeln
@@ -84,7 +85,7 @@ def create_new_group_chat(group_name, current_user):
 def create_global_group_chat():
     """Erstellt globalen Chat mit korrekter Membership"""
     try:
-        app.logger.debug("🔍 Prüfe ob globaler Chat existiert...")
+        app_logger.debug("🔍 Prüfe ob globaler Chat existiert...")
 
         with db.session.no_autoflush:
             existing_global_chat = BasicChatGroupChat.query.filter_by(
@@ -92,7 +93,7 @@ def create_global_group_chat():
             ).first()
 
         if not existing_global_chat:
-            app.logger.warning("➕ Globaler Chat existiert nicht! Erstelle...")
+            app_logger.warning("➕ Globaler Chat existiert nicht! Erstelle...")
 
             all_numbers = get_all_chat_room_numbers()
             new_number = creat_group_chat_number(all_numbers)
@@ -118,12 +119,12 @@ def create_global_group_chat():
             db.session.add(admin_membership)
             db.session.commit()
 
-            app.logger.info("✅ Globaler Chat erfolgreich erstellt!")
+            app_logger.info("✅ Globaler Chat erfolgreich erstellt!")
         else:
-            app.logger.info("ℹ️ Globaler Chat existiert bereits")
+            app_logger.info("ℹ️ Globaler Chat existiert bereits")
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Erstellen des globalen Chats: {e}")
+        app_logger.error(f"❌ Fehler beim Erstellen des globalen Chats: {e}")
         db.session.rollback()
         raise
 
@@ -138,7 +139,7 @@ def create_global_group_chat_safe():
         create_global_group_chat()
 
     except Exception as e:
-        app.logger.critical(
+        app_logger.critical(
             f"❌ Kritischer Fehler in create_global_group_chat_safe: {e}"
         )
 
@@ -161,10 +162,10 @@ def create_global_group_chat_safe():
             db.session.add(fallback_chat)
             db.session.commit()
 
-            app.logger.debug("✅ Fallback globaler Chat erstellt")
+            app_logger.debug("✅ Fallback globaler Chat erstellt")
 
         except Exception as fallback_error:
-            app.logger.error(f"❌ Auch Fallback fehlgeschlagen: {fallback_error}")
+            app_logger.error(f"❌ Auch Fallback fehlgeschlagen: {fallback_error}")
             db.session.rollback()
 
 
@@ -182,7 +183,7 @@ def get_global_chat_room_id():
             return None
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Abrufen der globalen Chat-ID: {e}")
+        app_logger.error(f"❌ Fehler beim Abrufen der globalen Chat-ID: {e}")
         return None
 
 
@@ -230,7 +231,7 @@ def get_all_my_chats(current_user):
         return group_chats + normal_chats
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Laden der Chats: {e}")
+        app_logger.error(f"❌ Fehler beim Laden der Chats: {e}")
         return []
 
 
@@ -345,7 +346,7 @@ def get_all_my_chats_with_users(current_user):
         return all_chats
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Laden der Chats mit Users: {e}")
+        app_logger.error(f"❌ Fehler beim Laden der Chats mit Users: {e}")
         return []
 
 
@@ -515,10 +516,10 @@ def find_chat_by_room_number_with_users(chat_room_number, current_user):
     except Exception as e:
         from flask import current_app as app
 
-        app.logger.error(f"❌ Fehler beim Suchen des Chats mit Users: {e}")
+        app_logger.error(f"❌ Fehler beim Suchen des Chats mit Users: {e}")
         import traceback
 
-        app.logger.error(traceback.format_exc())
+        app_logger.error(traceback.format_exc())
         return None, None, "Serverfehler beim Laden des Chats"
 
 
@@ -568,7 +569,7 @@ def check_user_chat_permission(chat_room_number, user_id):
     except Exception as e:
         from flask import current_app as app
 
-        app.logger.error(f"❌ Fehler bei Berechtigungsprüfung: {e}")
+        app_logger.error(f"❌ Fehler bei Berechtigungsprüfung: {e}")
         return False
 
 
@@ -649,7 +650,7 @@ def safe_new_message_with_user_info(
         return message_dict
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Speichern der Nachricht mit User-Info: {e}")
+        app_logger.error(f"❌ Fehler beim Speichern der Nachricht mit User-Info: {e}")
         db.session.rollback()
         return None
 
@@ -712,10 +713,10 @@ def get_all_messages_from_chat_room_with_users(chat_room_number):
     except Exception as e:
         from flask import current_app as app
 
-        app.logger.error(f"❌ Fehler beim Laden der Nachrichten mit Users: {e}")
+        app_logger.error(f"❌ Fehler beim Laden der Nachrichten mit Users: {e}")
         import traceback
 
-        app.logger.error(traceback.format_exc())
+        app_logger.error(traceback.format_exc())
         return []
 
 
@@ -744,7 +745,7 @@ def get_user_info(user_id):
                 "is_admin": False,
             }
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Laden der User-Info für ID {user_id}: {e}")
+        app_logger.error(f"❌ Fehler beim Laden der User-Info für ID {user_id}: {e}")
         return {
             "id": user_id,
             "username": f"Unbekannter Benutzer (ID: {user_id})",
@@ -760,13 +761,13 @@ def cleanup_user_data(user_id):
     Bereinigt Chat-Daten eines gelöschten Users (optional)
     """
     try:
-        app.logger.info(f"🧹 Bereinige Chat-Daten für User {user_id}...")
+        app_logger.info(f"🧹 Bereinige Chat-Daten für User {user_id}...")
 
         # Option 1: Nachrichten löschen
         deleted_messages = BasicChatChatMessages.query.filter_by(
             user_id=user_id
         ).delete()
-        app.logger.info(f"🗑️ {deleted_messages} Nachrichten gelöscht")
+        app_logger.info(f"🗑️ {deleted_messages} Nachrichten gelöscht")
 
         # Option 2: User aus Gruppenmitgliedschaften entfernen
         group_chats = BasicChatGroupChat.query.all()
@@ -790,7 +791,7 @@ def cleanup_user_data(user_id):
             (BasicChatNormalChat.a_user_id == user_id)
             | (BasicChatNormalChat.b_user_id == user_id)
         ).delete()
-        app.logger.info(f"🗑️ {deleted_normal_chats} normale Chats gelöscht")
+        app_logger.info(f"🗑️ {deleted_normal_chats} normale Chats gelöscht")
 
         # Option 4: created_by_user_id auf NULL setzen
         group_chats = BasicChatGroupChat.query.filter_by(
@@ -800,11 +801,11 @@ def cleanup_user_data(user_id):
             chat.created_by_user_id = None
 
         db.session.commit()
-        app.logger.info(f"✅ Chat-Daten für User {user_id} erfolgreich bereinigt")
+        app_logger.info(f"✅ Chat-Daten für User {user_id} erfolgreich bereinigt")
         return True
 
     except Exception as e:
-        app.logger.error(
+        app_logger.error(
             f"❌ Fehler beim Bereinigen der Chat-Daten für User {user_id}: {e}"
         )
         db.session.rollback()
@@ -825,14 +826,14 @@ def delete_all_messages_from_room_simple(chat_room_number):
         # Änderungen speichern
         db.session.commit()
 
-        app.logger.warning(
+        app_logger.warning(
             f"🗑️ ADMIN-LÖSCHUNG: {deleted_count} Nachrichten aus Raum {chat_room_number} gelöscht"
         )
 
         return deleted_count
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Löschen der Nachrichten: {e}")
+        app_logger.error(f"❌ Fehler beim Löschen der Nachrichten: {e}")
         db.session.rollback()
         raise e
 
@@ -897,13 +898,13 @@ def get_all_group_chats_for_admin():
 
             group_chats_data.append(chat_data)
 
-        app.logger.info(
+        app_logger.info(
             f"📊 Admin-Anfrage: {len(group_chats_data)} Gruppenchats geladen"
         )
         return group_chats_data
 
     except Exception as e:
-        app.logger.error(f"❌ Fehler beim Laden der Gruppenchats für Admin: {e}")
+        app_logger.error(f"❌ Fehler beim Laden der Gruppenchats für Admin: {e}")
         return []
 
 
@@ -928,7 +929,7 @@ def get_all_chat_room_numbers():
 
 def add_group_chat_member(group_chat_id, all_user_id):
     """
-    ✅ VERBESSERT: Fügt Benutzer zu Gruppenchat hinzu
+    ✅ KORRIGIERT: Sichere Integer-Konvertierung
     """
     error_message = None
     success = False
@@ -939,6 +940,9 @@ def add_group_chat_member(group_chat_id, all_user_id):
         group_chat = BasicChatGroupChat.query.get(group_chat_id)
         if not group_chat:
             return False, [], "Gruppe nicht gefunden"
+
+        # ✅ NEU: Konvertiere zu Integers
+        all_user_id = [int(uid) for uid in all_user_id]
 
         # Bereits vorhandene Members
         existing_memberships = BasicChatGroupMembership.query.filter_by(
@@ -962,16 +966,15 @@ def add_group_chat_member(group_chat_id, all_user_id):
 
             new_member = BasicChatGroupMembership(
                 group_chat_id=group_chat_id,
-                user_id=user_id,
+                user_id=user_id,  # ← Jetzt garantiert Integer
                 is_admin=False,
                 is_moderator=False,
             )
             db.session.add(new_member)
-            added_users.append(user_id)
+            added_users.append(user_id)  # ← Jetzt garantiert Integer
 
         db.session.commit()
         success = True
-
         print(f"✅ {len(added_users)} User zu Gruppe {group_chat_id} hinzugefügt")
 
     except Exception as e:
