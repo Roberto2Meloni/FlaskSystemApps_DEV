@@ -15,3 +15,5 @@ Description: In diesem Repository, werden dieverse System Tools zur verfüfung g
 Last Update: 28.07.2024
 
 Other: No other informations now.
+
+Type: DEV
