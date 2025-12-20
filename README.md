@@ -8,12 +8,10 @@ Author: Karatekti_123
 
 Created: 27.07.2024
 
-Type: DEV
-
 Description: In diesem Repository, werden dieverse System Tools zur verfüfung gestellt.
 
 Last Update: 28.07.2024
 
 Other: No other informations now.
 
-Type: DEV
+Type: dev
