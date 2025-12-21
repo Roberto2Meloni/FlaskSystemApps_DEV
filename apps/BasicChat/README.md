@@ -1,4 +1,4 @@
-# cli
+# BasicChat
 
 ## App Information
 
